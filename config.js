@@ -37,7 +37,12 @@ window.SHOP_CONFIG = {
 
 (function loadSharedAdminAssets(){
   const path = typeof location !== 'undefined' ? String(location.pathname || '') : '';
-  if(typeof document==='undefined' || window.SKIP_SHARED_ADMIN_ASSETS || path.startsWith('/admin/invoice') || !path.startsWith('/admin')) return;
+  if(typeof document==='undefined' || !path.startsWith('/admin')) return;
+  if(path.startsWith('/admin/invoice')){
+    if(!document.querySelector('script[data-shop-invoice-core]')){const script=document.createElement('script');script.src='/admin/invoice-core.js?v=1';script.dataset.shopInvoiceCore='true';document.head.appendChild(script);}
+    return;
+  }
+  if(window.SKIP_SHARED_ADMIN_ASSETS) return;
   if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=3';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('script[data-shop-shared-header]')){const script=document.createElement('script');script.src='/admin/shared-header.js?v=2';script.dataset.shopSharedHeader='true';document.head.appendChild(script);}
