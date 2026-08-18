@@ -12,22 +12,9 @@ window.SHOP_CONFIG = {
   city: "Your City",
   state: "IL",
   websiteUrl: "https://example.com",
-  colors: {
-    primary: "#1a3455",
-    accent: "#ae2b27"
-  },
-  trust: {
-    badge1: "ASE Certified Technicians",
-    badge2: "Locally Owned & Operated",
-    carsRepaired: "10K+",
-    yearsExperience: "20+",
-    satisfaction: "98%",
-    positiveReviews: "100+"
-  },
-  appointment: {
-    note: "Appointments are available Monday–Friday from 9:00 AM to 3:00 PM. Same-day booking is not available.",
-    slots: ["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM"]
-  },
+  colors: { primary: "#1a3455", accent: "#ae2b27" },
+  trust: { badge1: "ASE Certified Technicians", badge2: "Locally Owned & Operated", carsRepaired: "10K+", yearsExperience: "20+", satisfaction: "98%", positiveReviews: "100+" },
+  appointment: { note: "Appointments are available Monday–Friday from 9:00 AM to 3:00 PM. Same-day booking is not available.", slots: ["9:00 AM","9:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","12:00 PM","12:30 PM","1:00 PM","1:30 PM","2:00 PM","2:30 PM","3:00 PM"] },
   services: [
     { title: "Oil Change", icon: "🛢️", description: "Premium oil service to keep your engine protected and running smoothly.", detail: "Every service includes a quick visual inspection and straightforward recommendations." },
     { title: "Brakes", icon: "🛑", description: "Brake inspections, pads, rotors, hydraulic service, and complete brake repairs.", detail: "Dependable stopping power with quality parts and clear communication." },
@@ -50,42 +37,11 @@ window.SHOP_CONFIG = {
 
 (function loadSharedAdminAssets(){
   if(typeof document==='undefined' || !String(location.pathname||'').startsWith('/admin')) return;
-  if(!document.querySelector('link[data-shop-admin-skin]')){
-    const link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href='/admin/admin-redesign.css?v=3';
-    link.dataset.shopAdminSkin='true';
-    document.head.appendChild(link);
-  }
-  if(!document.querySelector('link[data-shop-status-skin]')){
-    const link=document.createElement('link');
-    link.rel='stylesheet';
-    link.href='/admin/status-hidden.css?v=1';
-    link.dataset.shopStatusSkin='true';
-    document.head.appendChild(link);
-  }
-  if(!document.querySelector('script[data-shop-shared-header]')){
-    const script=document.createElement('script');
-    script.src='/admin/shared-header.js?v=2';
-    script.dataset.shopSharedHeader='true';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-shop-vehicle-data]')){
-    const vehicleData=document.createElement('script');
-    vehicleData.src='/assets/vehicle-data.js?v=1';
-    vehicleData.dataset.shopVehicleData='true';
-    document.head.appendChild(vehicleData);
-  }
-  if(!document.querySelector('script[data-shop-appt-modal]')){
-    const script=document.createElement('script');
-    script.src='/admin/appointment-modal-redesign.js?v=1';
-    script.dataset.shopApptModal='true';
-    document.head.appendChild(script);
-  }
-  if(!document.querySelector('script[data-shop-new-appt]')){
-    const script=document.createElement('script');
-    script.src='/admin/new-appointment-enhancements.js?v=2';
-    script.dataset.shopNewAppt='true';
-    document.head.appendChild(script);
-  }
+  if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=3';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
+  if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
+  if(!document.querySelector('script[data-shop-shared-header]')){const script=document.createElement('script');script.src='/admin/shared-header.js?v=2';script.dataset.shopSharedHeader='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-shop-vehicle-data]')){const vehicleData=document.createElement('script');vehicleData.src='/assets/vehicle-data.js?v=1';vehicleData.dataset.shopVehicleData='true';document.head.appendChild(vehicleData);}
+  if(!document.querySelector('script[data-shop-appt-modal]')){const script=document.createElement('script');script.src='/admin/appointment-modal-redesign.js?v=1';script.dataset.shopApptModal='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-shop-new-appt]')){const script=document.createElement('script');script.src='/admin/new-appointment-enhancements.js?v=2';script.dataset.shopNewAppt='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-shop-invoice-link]')){const script=document.createElement('script');script.src='/admin/invoice-link.js?v=1';script.dataset.shopInvoiceLink='true';document.head.appendChild(script);}
 })();
