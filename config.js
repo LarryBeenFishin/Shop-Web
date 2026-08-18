@@ -64,6 +64,12 @@ window.SHOP_CONFIG = {
     link.dataset.shopStatusSkin='true';
     document.head.appendChild(link);
   }
+  if(!document.querySelector('script[data-shop-shared-header]')){
+    const script=document.createElement('script');
+    script.src='/admin/shared-header.js?v=1';
+    script.dataset.shopSharedHeader='true';
+    document.head.appendChild(script);
+  }
   if(!document.querySelector('script[data-shop-vehicle-data]')){
     const vehicleData=document.createElement('script');
     vehicleData.src='/assets/vehicle-data.js?v=1';
