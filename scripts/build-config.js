@@ -4,7 +4,7 @@ const vm = require('vm');
 const { createClient } = require('@supabase/supabase-js');
 
 const CONFIG_PATH = path.join(process.cwd(), 'config.js');
-const ADMIN_SKIN_LOADER = `\n(function loadSharedAdminSkin(){\n  if(typeof document==='undefined' || !String(location.pathname||'').startsWith('/admin')) return;\n  if(document.querySelector('link[data-shop-admin-skin]')) return;\n  const link=document.createElement('link');\n  link.rel='stylesheet';\n  link.href='/admin/admin-redesign.css?v=2';\n  link.dataset.shopAdminSkin='true';\n  document.head.appendChild(link);\n})();\n`;
+const ADMIN_ASSET_LOADER = `\n(function loadSharedAdminAssets(){\n  if(typeof document==='undefined' || !String(location.pathname||'').startsWith('/admin')) return;\n  if(!document.querySelector('link[data-shop-admin-skin]')){\n    const link=document.createElement('link');\n    link.rel='stylesheet';\n    link.href='/admin/admin-redesign.css?v=3';\n    link.dataset.shopAdminSkin='true';\n    document.head.appendChild(link);\n  }\n  if(!document.querySelector('script[data-shop-appt-modal]')){\n    const script=document.createElement('script');\n    script.src='/admin/appointment-modal-redesign.js?v=1';\n    script.dataset.shopApptModal='true';\n    document.head.appendChild(script);\n  }\n})();\n`;
 
 function readFallbackConfig(){
   const source=fs.readFileSync(CONFIG_PATH,'utf8');
@@ -51,7 +51,7 @@ async function main(){
   const merged=deepMerge(fallback,shop.public_config||{});
   merged.name=shop.name||merged.name;
 
-  const output=`// Generated during the Vercel build for SHOP_SLUG=${slug}.\nwindow.SHOP_CONFIG = ${JSON.stringify(merged,null,2)};\n${ADMIN_SKIN_LOADER}`;
+  const output=`// Generated during the Vercel build for SHOP_SLUG=${slug}.\nwindow.SHOP_CONFIG = ${JSON.stringify(merged,null,2)};\n${ADMIN_ASSET_LOADER}`;
   fs.writeFileSync(CONFIG_PATH,output,'utf8');
   console.log(`[shop-config] Generated config.js for ${shop.name} (${slug}).`);
 }
