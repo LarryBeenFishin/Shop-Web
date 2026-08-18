@@ -48,6 +48,7 @@ alter table public.customers add column if not exists shop_id uuid references pu
 alter table public.inspections add column if not exists shop_id uuid references public.shops(id) on delete restrict;
 alter table public.sms_messages add column if not exists shop_id uuid references public.shops(id) on delete restrict;
 alter table public.push_subscriptions add column if not exists shop_id uuid references public.shops(id) on delete restrict;
+alter table public.appointments add column if not exists customer_id uuid references public.customers(id) on delete set null;
 
 -- Attach all existing records to the first/current shop.
 do $$
@@ -72,6 +73,21 @@ alter table public.inspections alter column shop_id set not null;
 alter table public.sms_messages alter column shop_id set not null;
 alter table public.push_subscriptions alter column shop_id set not null;
 
+-- Link historical appointments to the matching customer profile when possible.
+update public.appointments a
+set customer_id = c.id
+from public.customers c
+where a.customer_id is null
+  and a.shop_id = c.shop_id
+  and regexp_replace(a.phone, '\D', '', 'g') <> ''
+  and (
+    case
+      when length(regexp_replace(a.phone, '\D', '', 'g')) = 11 and left(regexp_replace(a.phone, '\D', '', 'g'), 1) = '1'
+        then right(regexp_replace(a.phone, '\D', '', 'g'), 10)
+      else regexp_replace(a.phone, '\D', '', 'g')
+    end
+  ) = c.normalized_phone;
+
 -- Replace single-shop uniqueness with tenant-aware uniqueness.
 drop index if exists public.appointments_active_slot_unique;
 create unique index if not exists appointments_shop_active_slot_unique
@@ -82,6 +98,8 @@ create index if not exists appointments_shop_date_idx
   on public.appointments (shop_id, appointment_date, appointment_time_key);
 create index if not exists appointments_shop_status_idx
   on public.appointments (shop_id, status);
+create index if not exists appointments_shop_customer_idx
+  on public.appointments (shop_id, customer_id, appointment_date desc);
 
 -- Customer phone numbers only need to be unique inside one shop.
 drop index if exists public.customers_normalized_phone_unique;
