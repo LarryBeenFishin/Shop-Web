@@ -8,6 +8,7 @@
     { "source": "/admin/customers", "destination": "/admin/customers/index.html" },
     { "source": "/admin/inspection", "destination": "/admin/inspection/index.html" },
     { "source": "/admin/inspection-history", "destination": "/admin/inspection-history/index.html" },
+    { "source": "/admin/invoice", "destination": "/admin/invoice/index.html" },
     { "source": "/inspection", "destination": "/inspection/index.html" }
   ],
   "headers": [
