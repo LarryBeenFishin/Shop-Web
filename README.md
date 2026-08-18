@@ -1,89 +1,134 @@
-# Shop-Web — Auto Repair Website + Appointments
+# Shop-Web — Multi-Shop Auto Repair Platform
 
-This is the reusable version of the Toro-style auto repair website. It keeps the customer-facing website and appointment workflow, but replaces the Google appointment backend with **Supabase** and appointment emails with **Resend**.
+Shop-Web is the reusable auto-repair website/admin system based on the Toro workflow. It is now structured as a **multi-shop platform** instead of a single website that gets copied and modified for every customer.
 
-## What is included
+## Architecture
 
-- Responsive auto repair website
-- Two-step appointment form
-- No same-day appointments
-- Weekends disabled
-- Live booked-time availability from Supabase
-- Duplicate-slot protection at the database level
-- Customer confirmation email through Resend
-- Shop notification email through Resend
-- `/admin` appointment dashboard
-- Appointment status: Pending / Confirmed / Completed / Cancelled
-- Central `config.js` so each new shop can be rebranded without rebuilding the site
-- Placeholder shop images that can be swapped for the customer's real photos
+The recommended setup is:
 
-## 1. Drag these files into GitHub
+- **One GitHub repo** — this repository
+- **One shared Supabase project** — stores all shops and operational data
+- **One Vercel project per repair shop** — each deployment points at the same repo
+- **One `SHOP_SLUG` per Vercel project** — identifies which shop that deployment belongs to
 
-Upload the **contents** of this folder to the root of the `Shop-Web` repository. Do not upload the outer `Shop-Web-Ready` folder itself.
+Every operational record is tenant-scoped by `shop_id`:
 
-## 2. Create the Supabase project
+- appointments
+- customers
+- inspections
+- SMS history
+- push-notification subscriptions
+- audit events
 
-1. Create a new Supabase project.
-2. Open **SQL Editor**.
-3. Copy everything from `supabase/schema.sql` and run it.
-4. In Supabase project settings, copy:
-   - Project URL
-   - Service role key
+The API resolves the active shop first and then applies that `shop_id` to every read/write. This is the core security boundary between shops.
 
-The service-role key is only used inside Vercel server functions. Never put it in `config.js` or public HTML.
+## Included features
 
-## 3. Set up Resend
+### Customer website
+- Responsive repair-shop website
+- Two-step appointment request flow
+- Live appointment availability
+- Duplicate-slot protection
+- Customer + shop email notifications through Resend
+- Automatic customer-profile sync
 
-1. Create/verify the shop's sending domain in Resend.
-2. Create a Resend API key.
-3. Pick the address that should receive new appointment notifications.
+### Admin
+- Calendar
+- Today + upcoming appointments
+- Create/edit/reschedule appointments
+- Status workflow
+- Internal notes
+- Customer profiles
+- Inspection builder
+- Inspection history
+- Customer-facing inspection reports
+- SMS conversation history + outbound texting through Twilio
+- Browser push notifications
+- Audit trail in Supabase
 
-## 4. Add Vercel environment variables
+## Database setup
 
-In Vercel → Project → Settings → Environment Variables, add every value listed in `.env.example`:
+For a brand-new Supabase project run these files in order:
+
+1. `supabase/schema.sql`
+2. `supabase/admin_features.sql`
+3. `supabase/multi_tenant_v2.sql`
+
+`multi_tenant_v2.sql` creates the `shops` tenant table, attaches `shop_id` to all operational tables, migrates existing data into the first shop, creates tenant-aware indexes, and adds the audit log.
+
+## Vercel environment variables
+
+Shared across deployments:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
-- `SHOP_NOTIFICATION_EMAIL`
-- `SHOP_NAME`
+- `VAPID_SUBJECT` (when push is enabled)
+- `VAPID_PUBLIC_KEY` (when push is enabled)
+- `VAPID_PRIVATE_KEY` (when push is enabled)
+
+Set separately for each shop's Vercel project:
+
+- `SHOP_SLUG` — e.g. `smith-auto`
 - `ADMIN_PASSWORD`
 - `ADMIN_SESSION_SECRET`
+- `TWILIO_ACCOUNT_SID` (if that shop uses Twilio)
+- `TWILIO_AUTH_TOKEN` (if that shop uses Twilio)
+- `TWILIO_PHONE_NUMBER` (fallback if not stored on the shop row)
+- `TWILIO_VALIDATE_WEBHOOKS=true` once the Twilio webhook is configured
 
-For `ADMIN_SESSION_SECRET`, use a long random value.
+Legacy fallbacks still supported:
 
-## 5. Customize the new customer
+- `SHOP_NAME`
+- `SHOP_NOTIFICATION_EMAIL`
+- `RESEND_FROM_EMAIL`
 
-Edit only `config.js` for most shop-specific information:
+For new shops, store those settings on the `shops` row instead.
 
-- shop name
-- phone
-- address
-- hours
-- colors
-- services
-- specials
-- reviews
-- trust stats
-- appointment slots
+## Shop-specific website config
 
-Replace these images with the new customer's real photos while keeping the same filenames if you want zero HTML changes:
+Each row in `public.shops` has a `public_config` JSON object.
 
-- `assets/hero-placeholder.svg`
-- `assets/shop-1.svg`
-- `assets/shop-2.svg`
+During every Vercel build, `scripts/build-config.js` reads the shop identified by `SHOP_SLUG`, merges its `public_config` onto the repository's generic `config.js`, and generates the deployed shop-specific `config.js`.
 
-You can replace them with JPG/PNG/WebP files too; if the filename changes, update the matching path in `index.html`.
+That means **the source repo stays generic**. Shop A and Shop B can deploy from the same branch while getting different names, phone numbers, services, hours, colors, reviews, appointment slots, etc.
 
-## 6. Admin dashboard
+Vercel's `buildCommand` runs the generator automatically.
 
-After deployment, open:
+## Adding another repair shop
 
-`https://YOUR-DOMAIN.com/admin`
+See `docs/NEW_SHOP_CHECKLIST.md`.
 
-Sign in with the `ADMIN_PASSWORD` environment variable. The dashboard shows upcoming requests and lets the shop update their status.
+At a high level:
 
-## Important difference from Toro's live site
+1. Add a row to `public.shops` with a unique slug and its `public_config`.
+2. Optionally add its domain to `public.shop_domains`.
+3. Create another Vercel project from this same GitHub repository.
+4. Add the shared Supabase environment variables.
+5. Set that Vercel project's `SHOP_SLUG` to the new shop slug.
+6. Set a unique `ADMIN_PASSWORD` and `ADMIN_SESSION_SECRET`.
+7. Add the custom domain.
+8. Configure Resend/Twilio/push only if that shop needs them.
+9. Deploy.
 
-This package does **not** include the old Google Apps Script backend, invoicing, inspections, texting, customer database, or Shop Pilot features. It is intentionally the reusable **website + appointment** product.
+No database copy and no backend code copy are required.
+
+## Important security rules
+
+- Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.
+- Admin session cookies are HTTP-only and now include the tenant/shop identity.
+- Never make an API query against an operational table without applying the shop scope.
+- Twilio webhook signature validation can be enabled with `TWILIO_VALIDATE_WEBHOOKS=true`.
+- Row Level Security remains enabled on tenant tables; server functions use the Supabase secret/service key and enforce tenant scope in application code.
+
+## Current tenant
+
+The migration seeds the current deployment as:
+
+`shop-web`
+
+For the current Vercel project, set:
+
+`SHOP_SLUG=shop-web`
+
+before onboarding a second active shop.
