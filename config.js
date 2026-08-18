@@ -39,7 +39,7 @@ window.SHOP_CONFIG = {
   const path = typeof location !== 'undefined' ? String(location.pathname || '') : '';
   if(typeof document==='undefined' || !path.startsWith('/admin')) return;
   if(path.startsWith('/admin/invoice')){
-    if(!document.querySelector('script[data-shop-invoice-core]')){const script=document.createElement('script');script.src='/admin/invoice-core.js?v=2';script.dataset.shopInvoiceCore='true';document.head.appendChild(script);}
+    if(!document.querySelector('script[data-shop-invoice-core]')){const script=document.createElement('script');script.src='/admin/invoice-core.js?v=3';script.dataset.shopInvoiceCore='true';document.head.appendChild(script);}
     return;
   }
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
