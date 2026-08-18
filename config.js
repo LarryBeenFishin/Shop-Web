@@ -36,7 +36,8 @@ window.SHOP_CONFIG = {
 };
 
 (function loadSharedAdminAssets(){
-  if(typeof document==='undefined' || window.SKIP_SHARED_ADMIN_ASSETS || !String(location.pathname||'').startsWith('/admin')) return;
+  const path=String(location?.pathname||'');
+  if(typeof document==='undefined' || window.SKIP_SHARED_ADMIN_ASSETS || path.startsWith('/admin/invoice') || !path.startsWith('/admin')) return;
   if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=3';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('script[data-shop-shared-header]')){const script=document.createElement('script');script.src='/admin/shared-header.js?v=2';script.dataset.shopSharedHeader='true';document.head.appendChild(script);}
