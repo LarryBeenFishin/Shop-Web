@@ -13,7 +13,7 @@
     const activeKey=()=> 'shop_invoice_active_'+((window.cfg&&cfg.name)||'shop');
 
     function editableSnapshot(){
-      const x=window.invoice||{};
+      const x=invoice||{};
       return {
         status:x.status||'Draft',
         customer_id:x.customer_id||null,
