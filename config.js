@@ -66,7 +66,7 @@ window.SHOP_CONFIG = {
   }
   if(!document.querySelector('script[data-shop-shared-header]')){
     const script=document.createElement('script');
-    script.src='/admin/shared-header.js?v=1';
+    script.src='/admin/shared-header.js?v=2';
     script.dataset.shopSharedHeader='true';
     document.head.appendChild(script);
   }
