@@ -22,3 +22,6 @@ jobs:
 
       - name: Validate backend JavaScript and Vercel config
         run: npm run check
+
+      - name: Run build command
+        run: npm run build
