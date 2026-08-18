@@ -1,16 +1,8 @@
-const { createClient } = require('@supabase/supabase-js');
 const { Resend } = require('resend');
+const { db, upsertCustomer, auditEvent } = require('./_db');
+const { resolveShop, applyShopScope, withShopId } = require('./_tenant');
+const { sendShopPush } = require('./_notifications');
 
-function env(name, required = true) {
-  const value = process.env[name];
-  if (required && !value) throw new Error(`${name} is not configured`);
-  return value || '';
-}
-function supabaseAdmin() {
-  return createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'), {
-    auth: { persistSession: false, autoRefreshToken: false }
-  });
-}
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -25,12 +17,12 @@ function normalizeTime(timeText) {
 function validDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')); }
 function boolish(v) { return v === true || String(v).toLowerCase() === 'yes' || String(v).toLowerCase() === 'true'; }
 
-async function sendEmails(appt) {
+async function sendEmails(shop, appt) {
   if (!process.env.RESEND_API_KEY) return;
   const resend = new Resend(process.env.RESEND_API_KEY);
-  const shopName = process.env.SHOP_NAME || 'Auto Repair Shop';
-  const from = process.env.RESEND_FROM_EMAIL || `${shopName} <onboarding@resend.dev>`;
-  const shopEmail = process.env.SHOP_NOTIFICATION_EMAIL;
+  const shopName = shop?.name || process.env.SHOP_NAME || 'Auto Repair Shop';
+  const from = shop?.resend_from_email || process.env.RESEND_FROM_EMAIL || `${shopName} <onboarding@resend.dev>`;
+  const shopEmail = shop?.notification_email || process.env.SHOP_NOTIFICATION_EMAIL;
   const when = `${appt.preferred_date_label} at ${appt.appointment_time}`;
   const vehicle = `${appt.year} ${appt.make} ${appt.model}`;
 
@@ -56,16 +48,19 @@ async function sendEmails(appt) {
 
 module.exports = async function handler(req, res) {
   try {
-    const db = supabaseAdmin();
+    const supabase = db();
+    const shop = await resolveShop(req, supabase);
 
     if (req.method === 'GET') {
       const date = req.query.date;
       if (!validDate(date)) return res.status(400).json({ status: 'error', message: 'Invalid or missing date' });
-      const { data, error } = await db
+      let query = supabase
         .from('appointments')
         .select('appointment_time,status')
         .eq('appointment_date', date)
         .neq('status', 'cancelled');
+      query = applyShopScope(query, shop);
+      const { data, error } = await query;
       if (error) throw error;
       return res.status(200).json({
         status: 'success',
@@ -80,7 +75,7 @@ module.exports = async function handler(req, res) {
     if (missing.length) return res.status(400).json({ status: 'error', message: `Missing: ${missing.join(', ')}` });
     if (!validDate(p.preferred_date_raw)) return res.status(400).json({ status: 'error', message: 'Invalid appointment date' });
 
-    const row = {
+    const row = withShopId({
       name: String(p.name).trim().slice(0,120),
       phone: String(p.phone).trim().slice(0,40),
       email: String(p.email || '').trim().slice(0,200) || null,
@@ -95,18 +90,39 @@ module.exports = async function handler(req, res) {
       drop_off: boolish(p.drop_off),
       message: String(p.message || '').trim().slice(0,3000) || null,
       marketing_opt_in: boolish(p.marketing_opt_in),
-      submitted_from: String(p.submitted_from || 'Website').slice(0,120),
-      status: 'pending'
-    };
+      submitted_from: String(p.submitted_from || `${shop.name} Website`).slice(0,120),
+      status: 'pending',
+      seen:false,
+      updated_at:new Date().toISOString()
+    }, shop);
 
-    const { data, error } = await db.from('appointments').insert(row).select('*').single();
+    const { data, error } = await supabase.from('appointments').insert(row).select('*').single();
     if (error) {
       if (error.code === '23505') return res.status(409).json({ status: 'unavailable', message: 'That appointment time is already booked' });
       throw error;
     }
 
-    // Do not fail the booking if email delivery has a temporary issue.
-    await sendEmails(data).catch(err => console.error('Resend error:', err));
+    await upsertCustomer(supabase, {
+      name:data.name,
+      phone:data.phone,
+      email:data.email,
+      vehicle:`${data.year} ${data.make} ${data.model}`,
+      service:data.service
+    }, shop.id).catch(err=>console.error('Customer sync error:',err?.message||err));
+
+    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
+
+    // Notifications should never cause the booking itself to fail.
+    await Promise.allSettled([
+      sendEmails(shop, data),
+      sendShopPush(supabase,shop,{
+        title:`New appointment — ${shop.name}`,
+        body:`${data.name}: ${data.service} on ${data.preferred_date_label} at ${data.appointment_time}`,
+        url:'/admin',
+        tag:`appointment-${data.id}`
+      })
+    ]);
+
     return res.status(201).json({ status: 'success', appointment_id: data.id });
   } catch (err) {
     console.error(err);
