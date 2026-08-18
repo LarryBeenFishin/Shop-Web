@@ -36,6 +36,15 @@
     function fingerprint(){
       try{return JSON.stringify(editableSnapshot())}catch(e){return String(Date.now())}
     }
+    function hasMeaningfulContent(){
+      const x=invoice||{};
+      if(x.id||x.customer_id||x.vehicle_id)return true;
+      if(String(x.customer_name||x.customer_phone||x.customer_email||'').trim())return true;
+      if(String(x.concern||x.recommendations||x.internal_notes||x.advisor||'').trim())return true;
+      if(Array.isArray(x.lines)&&x.lines.some(l=>String(l.description||'').trim()||Number(l.qty)||Number(l.price)||Number(l.cost)))return true;
+      if(Array.isArray(x.payments)&&x.payments.some(p=>Number(p.amount)>0||String(p.note||'').trim()))return true;
+      return false;
+    }
     function persistLocal(){
       try{localStorage.setItem(activeKey(),JSON.stringify(invoice))}catch(e){console.warn('Invoice local save skipped',e)}
     }
@@ -72,6 +81,10 @@
 
     window.saveNow=async function(silent=false){
       clearTimeout(state.timer);state.timer=null;
+      if(!hasMeaningfulContent()){
+        setAutosave('No changes to save');
+        return null;
+      }
       if(state.inFlight){state.pending=true;return state.inFlight}
       state.suppress++;
       state.inFlight=(async()=>{
@@ -107,15 +120,16 @@
       persistLocal();
       renderTotals();
       updateWorkflowControls();
-      if(state.suppress>0){return}
-      if(invoice.status==='Draft'){
+      if(state.suppress>0)return;
+      if(!hasMeaningfulContent()){
         clearTimeout(state.timer);state.timer=null;
-        setAutosave('Draft saved locally');
+        setAutosave('Ready');
         return;
       }
-      if(fingerprint()===state.lastSavedFingerprint){return}
+      if(fingerprint()===state.lastSavedFingerprint)return;
       if(state.inFlight){state.pending=true;return}
       clearTimeout(state.timer);
+      setAutosave('Unsaved changes');
       state.timer=setTimeout(()=>saveNow(true).catch(()=>{}),900);
     };
 
@@ -189,11 +203,12 @@
     const originalUpdateHeader=updateHeader;
     window.updateHeader=function(){const out=originalUpdateHeader();updateWorkflowControls();return out};
     const originalNewDraft=newDraft;
-    window.newDraft=function(){clearTimeout(state.timer);state.timer=null;state.lastSavedFingerprint='';const out=originalNewDraft();updateWorkflowControls();return out};
+    window.newDraft=function(){clearTimeout(state.timer);state.timer=null;state.lastSavedFingerprint='';const out=originalNewDraft();setAutosave('Ready');updateWorkflowControls();return out};
     const originalOpenInvoice=openInvoice;
-    window.openInvoice=async function(id){clearTimeout(state.timer);state.timer=null;state.suppress++;try{return await originalOpenInvoice(id)}finally{state.suppress=Math.max(0,state.suppress-1);state.lastSavedFingerprint=fingerprint();updateWorkflowControls()}};
+    window.openInvoice=async function(id){clearTimeout(state.timer);state.timer=null;state.suppress++;try{return await originalOpenInvoice(id)}finally{state.suppress=Math.max(0,state.suppress-1);state.lastSavedFingerprint=fingerprint();setAutosave('Saved');updateWorkflowControls()}};
 
-    state.lastSavedFingerprint=invoice.status==='Draft'?'':fingerprint();
+    state.lastSavedFingerprint=invoice.id?fingerprint():'';
+    setAutosave(invoice.id?'Saved':'Ready');
     updateWorkflowControls();
   }
 
