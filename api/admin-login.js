@@ -1,8 +1,18 @@
 const { makeToken, cookieHeader, safeEqual } = require('./_auth');
+const { db } = require('./_db');
+const { resolveShop } = require('./_tenant');
+
 module.exports = async function handler(req,res){
   if(req.method!=='POST') return res.status(405).json({error:'Method not allowed'});
   if(!process.env.ADMIN_PASSWORD) return res.status(500).json({error:'ADMIN_PASSWORD is not configured'});
-  if(!safeEqual(req.body?.password,process.env.ADMIN_PASSWORD)) return res.status(401).json({error:'Incorrect password'});
-  res.setHeader('Set-Cookie',cookieHeader(makeToken()));
-  return res.status(200).json({status:'success'});
+  try{
+    const supabase=db();
+    const shop=await resolveShop(req,supabase);
+    if(!safeEqual(req.body?.password,process.env.ADMIN_PASSWORD)) return res.status(401).json({error:'Incorrect password'});
+    res.setHeader('Set-Cookie',cookieHeader(makeToken(shop)));
+    return res.status(200).json({status:'success',shop:{id:shop.id,slug:shop.slug,name:shop.name}});
+  }catch(err){
+    console.error(err);
+    return res.status(500).json({error:err.message||'Unable to resolve shop'});
+  }
 };
