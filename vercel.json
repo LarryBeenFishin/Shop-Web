@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "node scripts/build-config.js",
+  "buildCommand": "npm run check && npm run build",
   "cleanUrls": true,
   "rewrites": [
     { "source": "/admin", "destination": "/admin/index.html" },
