@@ -57,10 +57,22 @@ window.SHOP_CONFIG = {
     link.dataset.shopAdminSkin='true';
     document.head.appendChild(link);
   }
+  if(!document.querySelector('script[data-shop-vehicle-data]')){
+    const vehicleData=document.createElement('script');
+    vehicleData.src='/assets/vehicle-data.js?v=1';
+    vehicleData.dataset.shopVehicleData='true';
+    document.head.appendChild(vehicleData);
+  }
   if(!document.querySelector('script[data-shop-appt-modal]')){
     const script=document.createElement('script');
     script.src='/admin/appointment-modal-redesign.js?v=1';
     script.dataset.shopApptModal='true';
+    document.head.appendChild(script);
+  }
+  if(!document.querySelector('script[data-shop-new-appt]')){
+    const script=document.createElement('script');
+    script.src='/admin/new-appointment-enhancements.js?v=1';
+    script.dataset.shopNewAppt='true';
     document.head.appendChild(script);
   }
 })();
