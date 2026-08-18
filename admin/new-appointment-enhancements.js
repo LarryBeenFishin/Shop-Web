@@ -1,6 +1,5 @@
 /* New Appointment: shared vehicle dropdowns + existing customer lookup. */
 (function(){
-  const statusOptions=['pending','new','confirmed','checked-in','in-progress','waiting-approval','completed','cancelled'];
   let lookupTimer=null;
   let lookupResult=null;
 
@@ -10,10 +9,7 @@
     return digits;
   }
   function escapeHtml(v){
-    return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function prettyStatus(v){
-    return String(v||'').split('-').map(x=>(x[0]||'').toUpperCase()+x.slice(1)).join(' ');
+    return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
   }
   function data(){ return window.SHOP_VEHICLE_DATA||{makes:[],models:{},currentYears:()=>[]}; }
   function config(){ return window.SHOP_CONFIG||{}; }
@@ -172,7 +168,7 @@
           <div><label>Name</label><input id="cName" autocomplete="name"></div>
           <div class="customer-lookup-row"><label>Phone</label><input id="cPhone" type="tel" autocomplete="tel"><div id="customerLookupState" class="customer-lookup-state">Enter the customer phone number to search Customer Profiles.</div></div>
           <div><label>Email</label><input id="cEmail" type="email" autocomplete="email"></div>
-          <div><label>Service</label><select id="cService"><option value="">Select Service</option>${serviceOptions.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}<option value="Other">Other</option></select></div>
+          <div></div>
           <div id="customerMatchCard" class="customer-match-card"></div>
 
           <div class="new-appt-section-label">Vehicle</div>
@@ -186,7 +182,7 @@
           <div class="new-appt-section-label">Appointment</div>
           <div><label>Date</label><input id="cDate" type="date" min="${minDate}"></div>
           <div><label>Time</label><select id="cTime">${apptSlots.map(s=>`<option>${escapeHtml(s)}</option>`).join('')}</select></div>
-          <div><label>Status</label><select id="cStatus">${statusOptions.map(s=>`<option value="${s}" ${s==='confirmed'?'selected':''}>${escapeHtml(prettyStatus(s))}</option>`).join('')}</select></div>
+          <div><label>Service</label><select id="cService"><option value="">Select Service</option>${serviceOptions.map(s=>`<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('')}<option value="Other">Other</option></select></div>
           <div></div>
           <div class="full"><label>Customer Message</label><textarea id="cMessage" placeholder="What is the customer bringing the vehicle in for?"></textarea></div>
           <div class="full"><label>Internal Notes</label><textarea id="cNotes" placeholder="Shop-only notes..."></textarea></div>
@@ -197,7 +193,7 @@
       populateYear('');populateMake('');populateModel('','');
       byId('cPhone').addEventListener('input',()=>{clearTimeout(lookupTimer);lookupTimer=setTimeout(lookupCustomer,450)});
       byId('cPhone').addEventListener('blur',()=>{clearTimeout(lookupTimer);lookupCustomer()});
-      byId('cYear').addEventListener('change',e=>{populateMake('');populateModel('','');});
+      byId('cYear').addEventListener('change',()=>{populateMake('');populateModel('','');});
       byId('cMake').addEventListener('change',e=>populateModel(e.target.value,''));
       byId('cSavedVehicle').addEventListener('change',e=>{
         if(e.target.value==='__new__'){clearVehicle();return;}
@@ -228,7 +224,6 @@
         model:byId('cModel').value,
         appointment_date:byId('cDate').value,
         appointment_time:byId('cTime').value,
-        status:byId('cStatus').value,
         message:byId('cMessage').value,
         internal_notes:byId('cNotes').value,
         customer_id:lookupResult?.customer?.id||null,
