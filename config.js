@@ -47,3 +47,13 @@ window.SHOP_CONFIG = {
     { quote: "They explained everything before doing the work.", text: "Replace this with another real customer review.", name: "Customer Name", meta: "Google Review" }
   ]
 };
+
+(function loadSharedAdminSkin(){
+  if(typeof document==='undefined' || !String(location.pathname||'').startsWith('/admin')) return;
+  if(document.querySelector('link[data-shop-admin-skin]')) return;
+  const link=document.createElement('link');
+  link.rel='stylesheet';
+  link.href='/admin/admin-redesign.css?v=2';
+  link.dataset.shopAdminSkin='true';
+  document.head.appendChild(link);
+})();
