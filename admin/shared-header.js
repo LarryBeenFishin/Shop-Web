@@ -1,8 +1,8 @@
-/* Shared copy of the LIVE main admin navigation for every nested admin page. */
+/* Shared copy of the LIVE main admin navigation for nested admin pages. Invoice workspace stays full-screen. */
 (function(){
   function install(){
     const path=String(location.pathname||'').replace(/\/+$/,'')||'/';
-    if(path==='/admin' || !path.startsWith('/admin/') || document.getElementById('sharedAdminHeader')) return;
+    if(path==='/admin' || path.startsWith('/admin/invoice') || !path.startsWith('/admin/') || document.getElementById('sharedAdminHeader')) return;
     const cfg=window.SHOP_CONFIG||{};
     document.body.classList.add('shared-admin-nav-installed');
 
