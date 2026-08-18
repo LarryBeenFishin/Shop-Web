@@ -48,12 +48,19 @@ window.SHOP_CONFIG = {
   ]
 };
 
-(function loadSharedAdminSkin(){
+(function loadSharedAdminAssets(){
   if(typeof document==='undefined' || !String(location.pathname||'').startsWith('/admin')) return;
-  if(document.querySelector('link[data-shop-admin-skin]')) return;
-  const link=document.createElement('link');
-  link.rel='stylesheet';
-  link.href='/admin/admin-redesign.css?v=2';
-  link.dataset.shopAdminSkin='true';
-  document.head.appendChild(link);
+  if(!document.querySelector('link[data-shop-admin-skin]')){
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href='/admin/admin-redesign.css?v=3';
+    link.dataset.shopAdminSkin='true';
+    document.head.appendChild(link);
+  }
+  if(!document.querySelector('script[data-shop-appt-modal]')){
+    const script=document.createElement('script');
+    script.src='/admin/appointment-modal-redesign.js?v=1';
+    script.dataset.shopApptModal='true';
+    document.head.appendChild(script);
+  }
 })();
