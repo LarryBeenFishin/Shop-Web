@@ -75,7 +75,16 @@ module.exports = async function handler(req, res) {
     if (missing.length) return res.status(400).json({ status: 'error', message: `Missing: ${missing.join(', ')}` });
     if (!validDate(p.preferred_date_raw)) return res.status(400).json({ status: 'error', message: 'Invalid appointment date' });
 
+    const customer=await upsertCustomer(supabase,{
+      name:String(p.name).trim().slice(0,120),
+      phone:String(p.phone).trim().slice(0,40),
+      email:String(p.email||'').trim().slice(0,200)||null,
+      vehicle:`${String(p.year).trim()} ${String(p.make).trim()} ${String(p.model).trim()}`,
+      service:String(p.service).trim().slice(0,120)
+    },shop.id).catch(err=>{console.error('Customer sync error:',err?.message||err);return null;});
+
     const row = withShopId({
+      customer_id:customer?.id||null,
       name: String(p.name).trim().slice(0,120),
       phone: String(p.phone).trim().slice(0,40),
       email: String(p.email || '').trim().slice(0,200) || null,
@@ -102,15 +111,7 @@ module.exports = async function handler(req, res) {
       throw error;
     }
 
-    await upsertCustomer(supabase, {
-      name:data.name,
-      phone:data.phone,
-      email:data.email,
-      vehicle:`${data.year} ${data.make} ${data.model}`,
-      service:data.service
-    }, shop.id).catch(err=>console.error('Customer sync error:',err?.message||err));
-
-    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
+    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',customer_id:data.customer_id,service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
 
     // Notifications should never cause the booking itself to fail.
     await Promise.allSettled([
