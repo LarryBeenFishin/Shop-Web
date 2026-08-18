@@ -1,0 +1,3 @@
+/* Status is intentionally kept in the backend but hidden from the shop UI for now. */
+.status-pill{display:none!important}
+.appointment-dot[class*="status-"]{background:var(--navy)!important}
