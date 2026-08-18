@@ -1,4 +1,5 @@
 /* Shared copy of the LIVE main admin navigation for nested admin pages. Invoice workspace stays full-screen. */
+/* Deployment trigger: invoice workspace must remain isolated from shared admin navigation. */
 (function(){
   function install(){
     const path=String(location.pathname||'').replace(/\/+$/,'')||'/';
