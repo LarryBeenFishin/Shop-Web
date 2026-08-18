@@ -76,7 +76,7 @@ try{
   console.error(err.stack||err.message||err);
 }
 
-// Guard against the invoice autosave recursion that previously caused repeated POSTs.
+// Guard against invoice autosave recursion and invalid global-state assumptions.
 try{
   const invoiceHtml=fs.readFileSync(path.join(ROOT,'admin','invoice','index.html'),'utf8');
   const core=fs.readFileSync(path.join(ROOT,'admin','invoice-core.js'),'utf8');
@@ -85,6 +85,12 @@ try{
   }
   if(!core.includes('syncMeta(false)')){
     throw new Error('invoice save payload must read form state without re-queuing autosave');
+  }
+  if(core.includes('window.invoice')){
+    throw new Error('invoice is a top-level let binding; invoice-core.js must not access window.invoice');
+  }
+  if(!core.includes('const x=invoice||{}')){
+    throw new Error('invoice fingerprint must read the real invoice binding');
   }
   if(!invoiceHtml.includes("'invoice-save'")){
     throw new Error('invoice page no longer contains the invoice save path');
