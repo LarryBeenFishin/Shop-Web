@@ -1,5 +1,6 @@
 /* Adds the shared invoicing program to every tenant admin dashboard. */
 (function(){
+  if(!/^\/admin\/?$/.test(String(location.pathname||''))) return;
   function install(){
     const grid=document.querySelector('.admin-action-grid');
     if(!grid){setTimeout(install,80);return;}
