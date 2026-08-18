@@ -1,0 +1,135 @@
+/* Shared compact admin dashboard skin. Loaded by config.js for every shop. */
+.admin-hero{
+  background:var(--navy);
+  padding:0;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.admin-action-grid{
+  max-width:1500px;
+  margin:0 auto;
+  padding:14px 24px 18px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  align-items:stretch;
+}
+
+/* Shop identity becomes a real header instead of a giant tile. */
+.logo-card{
+  grid-column:1 / 4;
+  min-height:52px;
+  padding:0 4px;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  border-radius:0;
+  justify-content:flex-start;
+  pointer-events:none;
+}
+.logo-card .brand-box{
+  width:auto!important;
+  padding:0!important;
+  background:transparent!important;
+  color:#fff!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  text-align:left!important;
+  font-size:24px;
+  letter-spacing:-.03em;
+}
+
+/* Log out is utility navigation, not a primary dashboard feature. */
+.logout-card{
+  grid-column:4;
+  grid-row:1;
+  justify-self:end;
+  align-self:center;
+  width:auto;
+  min-width:112px;
+  min-height:42px;
+  padding:10px 16px;
+  border-radius:11px;
+  background:var(--red)!important;
+  box-shadow:none!important;
+  gap:7px;
+}
+.logout-card:hover{background:var(--red-dark)!important;transform:none!important}
+.logout-card .card-icon-wrap{display:none}
+.logout-card .action-title{font-size:14px!important;line-height:1;color:#fff!important}
+
+/* Four quick actions sit in one compact row on desktop. */
+.admin-action-card:not(.logo-card):not(.logout-card){
+  min-height:82px;
+  padding:14px 16px;
+  gap:12px;
+  border-radius:14px;
+  border:1px solid rgba(22,48,81,.08);
+  box-shadow:0 3px 10px rgba(5,18,36,.10);
+  background:#fff;
+  transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease;
+}
+.admin-action-card:not(.logo-card):not(.logout-card):hover{
+  background:#fff;
+  border-color:rgba(29,153,88,.42);
+  box-shadow:0 7px 18px rgba(5,18,36,.14);
+  transform:translateY(-1px);
+}
+.admin-action-card .card-icon-wrap{
+  width:42px;
+  height:42px;
+  min-width:42px;
+  border-radius:11px;
+  background:#edf9f2;
+}
+.admin-action-card .card-svg{
+  width:30px;
+  height:30px;
+  stroke-width:5;
+}
+.admin-action-card .action-copy{gap:0}
+.admin-action-card .action-title{
+  font-size:16px;
+  line-height:1.15;
+  letter-spacing:-.01em;
+}
+.admin-action-card .action-subtitle{
+  margin-top:4px;
+  font-size:12.5px;
+  line-height:1.25;
+  color:#66758b;
+}
+
+/* Pull the working portion of the dashboard much closer to the top. */
+.dashboard{padding:18px 24px 24px}
+.footer-actions{grid-template-columns:1fr;max-width:1500px}
+.footer-actions button:last-child{display:none}
+
+@media(max-width:900px){
+  .admin-action-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    padding:12px 14px 14px;
+    gap:10px;
+  }
+  .logo-card{grid-column:1;min-height:46px}
+  .logo-card .brand-box{font-size:20px}
+  .logout-card{grid-column:2;grid-row:1;min-height:38px;min-width:92px;padding:9px 13px}
+  .admin-action-card:not(.logo-card):not(.logout-card){min-height:74px;padding:12px 13px}
+  .admin-action-card .card-icon-wrap{width:38px;height:38px;min-width:38px}
+  .admin-action-card .card-svg{width:27px;height:27px}
+  .admin-action-card .action-title{font-size:14px}
+  .admin-action-card .action-subtitle{font-size:11.5px;margin-top:3px}
+  .dashboard{padding:14px}
+}
+
+@media(max-width:540px){
+  .admin-action-grid{padding:10px 10px 12px;gap:8px}
+  .logo-card .brand-box{font-size:17px}
+  .logout-card{min-width:78px;padding:8px 11px}
+  .logout-card .action-title{font-size:12px!important}
+  .admin-action-card:not(.logo-card):not(.logout-card){min-height:64px;padding:10px;gap:8px}
+  .admin-action-card .card-icon-wrap{width:34px;height:34px;min-width:34px;border-radius:9px}
+  .admin-action-card .card-svg{width:24px;height:24px}
+  .admin-action-card .action-title{font-size:13px}
+  .admin-action-card .action-subtitle{display:none}
+  .dashboard{padding:10px}
+}
