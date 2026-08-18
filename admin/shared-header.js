@@ -13,7 +13,7 @@
       #sharedAdminHeader *{box-sizing:border-box}
       #sharedAdminHeader .admin-action-grid{max-width:1500px;margin:0 auto;padding:14px 24px 18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:stretch}
       #sharedAdminHeader .admin-action-card{border:0;font-family:Arial,sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;text-align:left;color:#163051}
-      #sharedAdminHeader .logo-card{grid-column:1/4;min-height:52px;padding:0 4px;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;justify-content:flex-start}
+      #sharedAdminHeader .logo-card{grid-column:1/4;min-height:52px;padding:0 4px;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;justify-content:flex-start;pointer-events:none}
       #sharedAdminHeader .logo-card .brand-box{width:auto;padding:0;background:transparent;color:#fff;border-radius:0;box-shadow:none;text-align:left;font-size:24px;font-weight:900;letter-spacing:-.03em}
       #sharedAdminHeader .logout-card{grid-column:4;grid-row:1;justify-self:end;align-self:center;width:auto;min-width:112px;min-height:42px;padding:10px 16px;border-radius:11px;background:#af2727!important;color:#fff!important;box-shadow:none!important;gap:7px;justify-content:center}
       #sharedAdminHeader .logout-card:hover{background:#911f1f!important}
@@ -28,7 +28,6 @@
       #sharedAdminHeader .action-copy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:0}
       #sharedAdminHeader .action-title{display:block;font-size:16px;font-weight:800;line-height:1.15;letter-spacing:-.01em;color:#163051}
       #sharedAdminHeader .action-subtitle{display:block;margin-top:4px;font-size:12.5px;font-weight:400;line-height:1.25;color:#66758b}
-      #sharedAdminHeader .active-page{border-color:rgba(29,153,88,.55)!important;box-shadow:0 0 0 2px rgba(29,153,88,.18)!important}
       body.shared-admin-nav-installed{padding:0!important}
       body.shared-admin-nav-installed>.wrap{padding:18px!important}
       body.shared-admin-nav-installed main>.hero,body.shared-admin-nav-installed .wrap>.top{display:none!important}
@@ -63,16 +62,16 @@
       history:`<span class="card-icon-wrap"><svg class="card-svg" viewBox="0 0 64 64"><path d="M16 22A20 20 0 1 1 13 37"/><path d="M16 22H6V12"/><path d="M32 21v14h13"/></svg></span>`,
       customers:`<span class="card-icon-wrap"><svg class="card-svg" viewBox="0 0 64 64"><circle class="svg-fill" cx="25" cy="24" r="10"/><path class="svg-fill" d="M8 52c2-12 10-18 17-18s15 6 17 18H8z"/><circle class="svg-fill" cx="43" cy="27" r="8"/><path class="svg-fill" d="M36 52c2-9 8-14 14-14s11 5 13 14H36z"/></svg></span>`
     };
-    const card=(href,icon,title,sub,active)=>`<a class="admin-action-card ${active?'active-page':''}" href="${href}">${icon}<span class="action-copy"><span class="action-title">${title}</span><span class="action-subtitle">${sub}</span></span></a>`;
+    const card=(href,icon,title,sub)=>`<a class="admin-action-card" href="${href}">${icon}<span class="action-copy"><span class="action-title">${title}</span><span class="action-subtitle">${sub}</span></span></a>`;
     const header=document.createElement('header');
     header.id='sharedAdminHeader';
     header.innerHTML=`<div class="admin-action-grid">
-      <a class="admin-action-card logo-card" href="/admin"><div class="brand-box"></div></a>
+      <div class="admin-action-card logo-card"><div class="brand-box"></div></div>
       <button class="admin-action-card logout-card" type="button"><span class="action-title">Log Out</span></button>
-      ${card('/admin?newAppointment=1',icons.calendar,'New Appointment','Schedule a new<br>service appointment',false)}
-      ${card('/admin/inspection',icons.inspection,'Inspection Form','Create a new<br>inspection form',path==='/admin/inspection')}
-      ${card('/admin/inspection-history',icons.history,'Inspection History','View past<br>inspections',path==='/admin/inspection-history')}
-      ${card('/admin/customers',icons.customers,'Customer Profiles','Manage customer<br>information',path==='/admin/customers')}
+      ${card('/admin?newAppointment=1',icons.calendar,'New Appointment','Schedule a new<br>service appointment')}
+      ${card('/admin/inspection',icons.inspection,'Inspection Form','Create a new<br>inspection form')}
+      ${card('/admin/inspection-history',icons.history,'Inspection History','View past<br>inspections')}
+      ${card('/admin/customers',icons.customers,'Customer Profiles','Manage customer<br>information')}
     </div>`;
     header.querySelector('.brand-box').textContent=cfg.name||'YOUR SHOP NAME';
     header.querySelector('.logout-card').addEventListener('click',async()=>{try{await fetch('/api/admin-logout',{method:'POST'})}catch(e){} location.href='/admin'});
