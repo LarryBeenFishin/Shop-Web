@@ -17,13 +17,11 @@ button:hover,.btn:hover{filter:brightness(.95)}
 .page-head h1{font-size:30px;margin:0 0 4px;letter-spacing:-.025em}.page-head p{margin:0;color:var(--muted);font-size:14px}
 .filters{background:#fff;border:1px solid #e3e9f1;border-radius:16px;padding:14px;box-shadow:0 5px 18px rgba(22,48,81,.06);display:grid;grid-template-columns:minmax(240px,1.6fr) repeat(4,minmax(140px,.7fr));gap:10px;margin-bottom:14px}
 .filters input,.filters select{width:100%;height:43px;border:1px solid #dce4ee;border-radius:10px;padding:9px 11px;font:14px Arial,sans-serif;color:var(--navy);background:#fff}
-.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}.summary-card{background:#fff;border:1px solid #e3e9f1;border-radius:14px;padding:13px 15px}.summary-card strong{display:block;font-size:23px;margin-bottom:3px}.summary-card span{font-size:12px;color:var(--muted)}
-.notice{font-size:13px;color:var(--muted);margin:0 0 12px}
 .groups{display:flex;flex-direction:column;gap:14px}.group{background:#fff;border:1px solid #e3e9f1;border-radius:17px;box-shadow:0 6px 20px rgba(22,48,81,.06);overflow:hidden}.group-head{padding:15px 17px;border-bottom:1px solid #edf1f6;background:#fbfcfe;display:flex;justify-content:space-between;align-items:center;gap:14px}.group-title{min-width:0}.group-title h2{font-size:18px;margin:0 0 3px}.group-title div{font-size:13px;color:var(--muted)}.count{font-size:12px;font-weight:800;background:#edf3fa;padding:6px 9px;border-radius:999px;white-space:nowrap}
 .rows{display:flex;flex-direction:column}.inspection-row{display:grid;grid-template-columns:minmax(170px,.8fr) minmax(170px,.75fr) 1fr auto;gap:15px;align-items:center;padding:15px 17px;border-top:1px solid #eef2f7}.inspection-row:first-child{border-top:0}.inspection-row:hover{background:#fbfdff}.date strong{display:block;font-size:14px}.date span,.vehicle-meta{display:block;font-size:12px;color:var(--muted);margin-top:3px}.vehicle-name{font-size:14px;font-weight:800}.block-summary{min-width:0}.mini-stats{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:6px}.chip{font-size:11px;font-weight:800;border-radius:999px;padding:4px 7px;background:#eef3fa;color:#4f6078}.chip.attention{background:#fff0f0;color:#b72828}.chip.monitor{background:#fff7e9;color:#9b650f}.attention-preview{font-size:12px;color:#45566e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.attention-preview strong{color:#b72828}.row-actions{display:flex;gap:7px}.empty{background:#fff;border:1px solid #e3e9f1;border-radius:16px;padding:30px;text-align:center;color:var(--muted)}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(5,15,30,.58);z-index:9999;align-items:center;justify-content:center;padding:16px}.modal-overlay.open{display:flex}.modal{width:min(760px,100%);max-height:92vh;overflow:auto;background:#fff;border-radius:20px;padding:22px;position:relative}.close{position:absolute;right:15px;top:15px;width:38px;height:38px;padding:0;border:1px solid #d8e0eb;background:#fff;color:var(--navy);font-size:22px}.modal h2{margin:0 50px 4px 0;font-size:25px}.modal-sub{color:var(--muted);font-size:13px;margin-bottom:16px}.info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-bottom:16px}.info{border:1px solid #e4eaf2;border-radius:11px;background:#f9fbfd;padding:11px}.info label{display:block;font-size:10px;text-transform:uppercase;font-weight:900;color:#7a899e;margin-bottom:4px}.info div{font-size:13px;font-weight:700;color:#34465e}.detail-section{margin-top:17px}.detail-section h3{font-size:14px;margin:0 0 9px}.detail-block{border:1px solid #e3e9f1;border-left:4px solid var(--green);border-radius:11px;padding:11px 12px;margin-bottom:8px}.detail-block.monitor{border-left-color:#d58a1b}.detail-block.attention{border-left-color:var(--red)}.detail-block-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.detail-block-title{font-size:14px;font-weight:900}.detail-status{font-size:11px;font-weight:900;color:#60708a}.detail-notes{font-size:13px;color:#4d5e74;line-height:1.45;margin-top:6px;white-space:pre-wrap}.recommendations{background:#f8fafc;border:1px solid #e3e9f1;border-radius:11px;padding:12px;font-size:13px;line-height:1.5;white-space:pre-wrap}.modal-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:18px;padding-top:15px;border-top:1px solid #e7ecf3}
-@media(max-width:950px){.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.summary{grid-template-columns:1fr 1fr}.inspection-row{grid-template-columns:1fr 1fr}.block-summary{grid-column:1/-1}.row-actions{justify-content:flex-start}}
-@media(max-width:600px){.page{padding:14px 10px 40px}.page-head{align-items:flex-start;flex-direction:column}.page-head .btn{width:100%}.filters{grid-template-columns:1fr}.filters .search{grid-column:auto}.summary{grid-template-columns:1fr 1fr}.inspection-row{grid-template-columns:1fr;padding:14px}.block-summary{grid-column:auto}.row-actions>*{flex:1}.group-head{align-items:flex-start}.info-grid{grid-template-columns:1fr}.modal-overlay{padding:8px;align-items:flex-end}.modal{border-radius:20px 20px 0 0;max-height:94vh}.modal-actions{grid-template-columns:1fr}}
+@media(max-width:950px){.filters{grid-template-columns:1fr 1fr}.filters .search{grid-column:1/-1}.inspection-row{grid-template-columns:1fr 1fr}.block-summary{grid-column:1/-1}.row-actions{justify-content:flex-start}}
+@media(max-width:600px){.page{padding:14px 10px 40px}.page-head{align-items:flex-start;flex-direction:column}.page-head .btn{width:100%}.filters{grid-template-columns:1fr}.filters .search{grid-column:auto}.inspection-row{grid-template-columns:1fr;padding:14px}.block-summary{grid-column:auto}.row-actions>*{flex:1}.group-head{align-items:flex-start}.info-grid{grid-template-columns:1fr}.modal-overlay{padding:8px;align-items:flex-end}.modal{border-radius:20px 20px 0 0;max-height:94vh}.modal-actions{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -42,14 +40,6 @@ button:hover,.btn:hover{filter:brightness(.95)}
     <input id="dateFilter" type="month" onchange="render()" title="Filter by month">
   </section>
 
-  <section class="summary">
-    <div class="summary-card"><strong id="totalCount">0</strong><span>Total inspections</span></div>
-    <div class="summary-card"><strong id="shownCount">0</strong><span>Showing now</span></div>
-    <div class="summary-card"><strong id="attentionCount">0</strong><span>With attention items</span></div>
-    <div class="summary-card"><strong id="vehicleCount">0</strong><span>Vehicles inspected</span></div>
-  </section>
-
-  <div id="notice" class="notice">Loading inspections...</div>
   <div id="groups" class="groups"></div>
 </main>
 
@@ -62,7 +52,7 @@ button:hover,.btn:hover{filter:brightness(.95)}
 
 <script>
 let inspections=[];
-function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
 function lower(v){return String(v||'').toLowerCase()}
 function formatDate(v){if(!v)return'Unknown date';const d=new Date(v);return Number.isNaN(d.getTime())?v:d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}
 function formatTime(v){if(!v)return'';const d=new Date(v);return Number.isNaN(d.getTime())?'':d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}
@@ -93,10 +83,6 @@ function filtered(){
 function groupKey(i){return `${i.customer_id||lower(i.customer_name)}|${i.vehicle_id||lower(i.vehicle)}`}
 function render(){
   const rows=filtered();
-  totalCount.textContent=inspections.length;shownCount.textContent=rows.length;
-  attentionCount.textContent=inspections.filter(i=>counts(i).attention>0).length;
-  vehicleCount.textContent=new Set(inspections.map(i=>i.vehicle_id||lower(i.vehicle)).filter(Boolean)).size;
-  notice.textContent=`${rows.length} inspection${rows.length===1?'':'s'} shown`;
   const grouped=new Map();
   rows.forEach(i=>{const key=groupKey(i);if(!grouped.has(key))grouped.set(key,[]);grouped.get(key).push(i)});
   groups.innerHTML=grouped.size?[...grouped.values()].map(renderGroup).join(''):'<div class="empty">No inspections match these filters.</div>';
@@ -118,12 +104,11 @@ function openDetail(id){
   detailModal.classList.add('open');
 }
 function closeDetail(){detailModal.classList.remove('open')}
-async function copyLink(id){const u=location.origin+'/inspection?id='+id;try{await navigator.clipboard.writeText(u);notice.textContent='Inspection report link copied.'}catch{prompt('Copy this link:',u)}}
+async function copyLink(id){const u=location.origin+'/inspection?id='+id;try{await navigator.clipboard.writeText(u)}catch{prompt('Copy this link:',u)}}
 async function load(){
-  notice.textContent='Loading inspections...';
   try{
     const r=await fetch('/api/admin-data?action=inspections',{cache:'no-store'});if(r.status===401){location.href='/admin';return}const j=await r.json();if(!r.ok)throw new Error(j.error||'Unable to load inspections');inspections=j.inspections||[];fillFilters();render();
-  }catch(e){notice.textContent=e.message||'Unable to load inspections';groups.innerHTML='<div class="empty">Could not load inspection history.</div>'}
+  }catch(e){groups.innerHTML='<div class="empty">Could not load inspection history.</div>'}
 }
 load();
 </script>
