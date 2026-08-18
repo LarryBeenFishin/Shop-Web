@@ -104,6 +104,56 @@
 .footer-actions{grid-template-columns:1fr;max-width:1500px}
 .footer-actions button:last-child{display:none}
 
+/* Appointment detail modal: information first, editing only where it is useful. */
+#apptModal .modal{
+  max-width:720px;
+  padding:28px;
+  border-radius:22px;
+  background:#fff;
+}
+#apptModal .modal-x{
+  top:18px;
+  right:18px;
+  width:38px;
+  height:38px;
+  border:1px solid #d8e0eb;
+  color:#66758b;
+  background:#fff;
+  font-size:23px;
+  border-radius:11px;
+}
+#apptModal .modal-x:hover{background:#f3f6fa;color:var(--navy);border-color:#c6d1df}
+.appt-detail-header{padding:0 54px 18px 0;border-bottom:1px solid #e7ecf3;margin-bottom:18px}
+.appt-eyebrow{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--green);margin-bottom:5px}
+.appt-detail-header h2{margin:0!important;font-size:28px;line-height:1.12;letter-spacing:-.025em;color:var(--navy)}
+.appt-current-time{margin-top:7px;color:#67768b;font-size:14px;font-weight:600}
+.appt-current-time span{padding:0 5px;color:#a7b1bf}
+.appt-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px}
+.appt-info-card{padding:13px 14px;border:1px solid #e3e9f1;background:#f8fafc;border-radius:13px;min-width:0}
+.appt-info-label{font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:#7b899d;margin-bottom:5px}
+.appt-info-value{font-size:14px;font-weight:700;color:#2f4058;line-height:1.3;overflow-wrap:anywhere}
+.appt-section{margin-top:16px}
+.appt-section-title{display:block;font-size:13px;font-weight:900;color:var(--navy);margin:0 0 8px}
+.appt-section-help{font-size:11.5px;color:#7a8798;line-height:1.35;margin-top:5px}
+.appt-reschedule-section{padding:15px;border:1px solid #dfe7f0;border-radius:14px;background:#fbfcfe}
+.appt-section-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.appt-section-heading .appt-section-title{margin-bottom:2px}
+.appt-reschedule-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.appt-reschedule-grid label{font-size:11px;margin:0 0 5px;color:#53637a}
+.appt-reschedule-grid input,.appt-reschedule-grid select{height:44px;padding:10px 12px;border-radius:10px;background:#fff}
+.appt-message-box{min-height:58px;padding:13px 14px;border-radius:12px;border:1px solid #e3e9f1;background:#f8fafc;color:#34455e;font-size:14px;line-height:1.45;white-space:pre-wrap}
+.appt-message-box.empty-message{color:#8894a5;font-style:italic}
+.appt-notes{min-height:105px;border-radius:12px;padding:13px 14px;background:#fff;line-height:1.45}
+.appt-modal-actions{display:grid;grid-template-columns:1fr 1.25fr auto;gap:9px;margin-top:20px;padding-top:18px;border-top:1px solid #e7ecf3}
+.appt-modal-actions button{min-height:46px;border-radius:11px;padding:11px 15px;font-size:14px}
+.appt-text-btn{background:var(--navy)!important}.appt-text-btn:hover{background:var(--navy-dark)!important}
+.appt-save-btn{background:var(--green)!important}.appt-save-btn:hover{filter:brightness(.92)}
+.appt-save-btn:disabled{opacity:.65;cursor:wait}
+.appt-delete-btn{background:#fff!important;color:#c52b2b!important;border:1px solid #efb7b7!important}
+.appt-delete-btn:hover{background:#fff5f5!important;border-color:#da7f7f!important}
+.appt-save-notice{min-height:18px;margin-top:9px;text-align:right;font-size:12px;font-weight:700;color:#6f7e90}
+.appt-save-notice.success{color:#188650}.appt-save-notice.error{color:#c52b2b}
+
 @media(max-width:900px){
   .admin-action-grid{
     grid-template-columns:repeat(2,minmax(0,1fr));
@@ -121,6 +171,21 @@
   .dashboard{padding:14px}
 }
 
+@media(max-width:600px){
+  #apptModal{padding:8px;align-items:flex-end}
+  #apptModal .modal{max-height:94vh;padding:20px 16px 18px;border-radius:20px 20px 0 0}
+  #apptModal .modal-x{top:13px;right:13px}
+  .appt-detail-header{padding-right:48px;margin-bottom:14px}
+  .appt-detail-header h2{font-size:23px}
+  .appt-info-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .appt-info-card{padding:11px}
+  .appt-info-value{font-size:13px}
+  .appt-reschedule-grid{grid-template-columns:1fr 1fr}
+  .appt-modal-actions{grid-template-columns:1fr 1fr}
+  .appt-delete-btn{grid-column:1/-1}
+  .appt-save-notice{text-align:center}
+}
+
 @media(max-width:540px){
   .admin-action-grid{padding:10px 10px 12px;gap:8px}
   .logo-card .brand-box{font-size:17px}
@@ -132,4 +197,11 @@
   .admin-action-card .action-title{font-size:13px}
   .admin-action-card .action-subtitle{display:none}
   .dashboard{padding:10px}
+}
+
+@media(max-width:420px){
+  .appt-info-grid{grid-template-columns:1fr}
+  .appt-reschedule-grid{grid-template-columns:1fr}
+  .appt-modal-actions{grid-template-columns:1fr}
+  .appt-delete-btn{grid-column:auto}
 }
