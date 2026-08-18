@@ -1,7 +1,7 @@
 {
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/admin", "destination": "/admin/toros.html" },
+    { "source": "/admin", "destination": "/admin/index.html" },
     { "source": "/admin/customers", "destination": "/admin/customers/index.html" },
     { "source": "/admin/inspection", "destination": "/admin/inspection/index.html" },
     { "source": "/admin/inspection-history", "destination": "/admin/inspection-history/index.html" },
@@ -12,7 +12,8 @@
       "source": "/(.*)",
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
     }
   ]
