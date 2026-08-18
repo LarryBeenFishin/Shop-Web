@@ -83,8 +83,7 @@ module.exports = async function handler(req, res) {
       service:String(p.service).trim().slice(0,120)
     },shop.id).catch(err=>{console.error('Customer sync error:',err?.message||err);return null;});
 
-    const row = withShopId({
-      customer_id:customer?.id||null,
+    const baseRow = {
       name: String(p.name).trim().slice(0,120),
       phone: String(p.phone).trim().slice(0,40),
       email: String(p.email || '').trim().slice(0,200) || null,
@@ -103,7 +102,9 @@ module.exports = async function handler(req, res) {
       status: 'pending',
       seen:false,
       updated_at:new Date().toISOString()
-    }, shop);
+    };
+    if(shop.id) baseRow.customer_id=customer?.id||null;
+    const row=withShopId(baseRow,shop);
 
     const { data, error } = await supabase.from('appointments').insert(row).select('*').single();
     if (error) {
@@ -111,9 +112,8 @@ module.exports = async function handler(req, res) {
       throw error;
     }
 
-    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',customer_id:data.customer_id,service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
+    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',customer_id:data.customer_id||null,service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
 
-    // Notifications should never cause the booking itself to fail.
     await Promise.allSettled([
       sendEmails(shop, data),
       sendShopPush(supabase,shop,{
