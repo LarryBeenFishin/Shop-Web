@@ -61,15 +61,36 @@ try{
   console.error(err.stack||err.message||err);
 }
 
+try{
+  const {ADMIN_ASSET_LOADER,generatedConfigSource}=require('./build-config');
+  checkScript(ADMIN_ASSET_LOADER,'generated admin asset loader');
+  checkScript(generatedConfigSource({name:'CI Test Shop'},'ci-test'),'generated tenant config');
+  const fallback=fs.readFileSync(path.join(ROOT,'config.js'),'utf8');
+  if(!fallback.includes('/admin/invoice-core.js?v=3') || !ADMIN_ASSET_LOADER.includes('/admin/invoice-core.js?v=3')){
+    throw new Error('fallback and generated configs must load the same invoice-core version');
+  }
+  console.log('OK  generated tenant config');
+}catch(err){
+  failed=true;
+  console.error('FAIL generated tenant config');
+  console.error(err.stack||err.message||err);
+}
+
 // Guard against the invoice autosave recursion that previously caused repeated POSTs.
 try{
   const invoiceHtml=fs.readFileSync(path.join(ROOT,'admin','invoice','index.html'),'utf8');
   const core=fs.readFileSync(path.join(ROOT,'admin','invoice-core.js'),'utf8');
-  if(!core.includes('lastSavedFingerprint') || !core.includes('state.inFlight')){
+  if(!core.includes('lastSavedFingerprint') || !core.includes('state.inFlight') || !core.includes('state.suppress')){
     throw new Error('invoice-core.js is missing deterministic autosave safeguards');
   }
-  if(!invoiceHtml.includes("action='invoice-save'") && !invoiceHtml.includes("action=\"invoice-save\"") && !invoiceHtml.includes("'invoice-save'")){
+  if(!core.includes('syncMeta(false)')){
+    throw new Error('invoice save payload must read form state without re-queuing autosave');
+  }
+  if(!invoiceHtml.includes("'invoice-save'")){
     throw new Error('invoice page no longer contains the invoice save path');
+  }
+  if(/autosave-fix\.js/i.test(invoiceHtml)){
+    throw new Error('invoice page must not load the retired autosave patch');
   }
   console.log('OK  invoice autosave safeguards');
 }catch(err){
