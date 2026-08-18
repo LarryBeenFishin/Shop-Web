@@ -36,7 +36,7 @@ window.SHOP_CONFIG = {
 };
 
 (function loadSharedAdminAssets(){
-  const path=String(location?.pathname||'');
+  const path=typeof location==='undefined'?'':String(location.pathname||'');
   if(typeof document==='undefined' || window.SKIP_SHARED_ADMIN_ASSETS || path.startsWith('/admin/invoice') || !path.startsWith('/admin')) return;
   if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=3';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
