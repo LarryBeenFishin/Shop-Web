@@ -1,11 +1,41 @@
 /* Core invoice workflow safeguards shared by every shop. */
 (function(){
   function boot(){
-    if(typeof changeWorkflow!=='function' || typeof updateHeader!=='function' || typeof renderCustomerCard!=='function'){
+    if(typeof changeWorkflow!=='function' || typeof updateHeader!=='function' || typeof renderCustomerCard!=='function' || typeof syncMeta!=='function' || typeof invoicePayload!=='function'){
       setTimeout(boot,60);return;
     }
     if(window.__invoiceCoreInstalled)return;
     window.__invoiceCoreInstalled=true;
+
+    // Saving used to call invoicePayload() -> syncMeta() -> queueSave(), which
+    // scheduled another save every time a save completed. Keep normal form edits
+    // autosaving, but allow saveNow() to read the form without re-queuing itself.
+    syncMeta=function(shouldQueue=true){
+      invoice.opened_date=$('openedDate').value;
+      invoice.promise_date=$('promiseDate').value||null;
+      invoice.advisor=$('advisor').value;
+      invoice.concern=$('concern').value;
+      invoice.recommendations=$('recommendations').value;
+      invoice.internal_notes=$('internalNotes').value;
+      if(shouldQueue)queueSave();
+    };
+    invoicePayload=function(){
+      syncMeta(false);
+      return {
+        ...invoice,
+        documentNumber:invoice.document_number,
+        customerName:invoice.customer_name,
+        customerPhone:invoice.customer_phone,
+        customerEmail:invoice.customer_email,
+        customerId:invoice.customer_id,
+        vehicleId:invoice.vehicle_id,
+        openedDate:invoice.opened_date,
+        promiseDate:invoice.promise_date,
+        internalNotes:invoice.internal_notes,
+        lines:invoice.lines,
+        payments:invoice.payments
+      };
+    };
 
     const css=document.createElement('style');
     css.textContent=`
