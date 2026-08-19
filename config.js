@@ -40,6 +40,7 @@ window.SHOP_CONFIG = {
   if(typeof document==='undefined' || !path.startsWith('/admin')) return;
   if(path.startsWith('/admin/invoice')){
     if(!document.querySelector('script[data-shop-invoice-core]')){const script=document.createElement('script');script.src='/admin/invoice-core.js?v=3';script.dataset.shopInvoiceCore='true';document.head.appendChild(script);}
+    if(!document.querySelector('script[data-shop-invoice-suite]')){const script=document.createElement('script');script.src='/admin/invoice-suite.js?v=1';script.dataset.shopInvoiceSuite='true';document.head.appendChild(script);}
     return;
   }
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;

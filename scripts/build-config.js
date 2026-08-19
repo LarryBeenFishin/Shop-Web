@@ -18,6 +18,7 @@ const ADMIN_ASSET_LOADER = `
   }
   if(path.startsWith('/admin/invoice')){
     js('data-shop-invoice-core','/admin/invoice-core.js?v=3');
+    js('data-shop-invoice-suite','/admin/invoice-suite.js?v=1');
     return;
   }
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
