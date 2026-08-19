@@ -8,20 +8,18 @@ const ADMIN_ASSET_LOADER = `
 (function loadSharedAdminAssets(){
   const path=typeof location==='undefined'?'':String(location.pathname||'');
   if(typeof document==='undefined' || !path.startsWith('/admin')) return;
-  function js(key,src,onload){
+  function js(key,src){
     if(document.querySelector('script['+key+']'))return;
-    const x=document.createElement('script');x.src=src;x.setAttribute(key,'true');if(onload)x.onload=onload;document.head.appendChild(x);
+    const x=document.createElement('script');x.src=src;x.setAttribute(key,'true');document.head.appendChild(x);
   }
   function css(key,src){
     if(document.querySelector('link['+key+']'))return;
     const x=document.createElement('link');x.rel='stylesheet';x.href=src;x.setAttribute(key,'true');document.head.appendChild(x);
   }
   if(path.startsWith('/admin/invoice')){
-    const loadInvoiceAssets=()=>{
-      js('data-shop-invoice-core','/admin/invoice-core.js?v=4',()=>js('data-shop-invoice-suite','/admin/invoice-suite.js?v=2'));
-    };
-    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadInvoiceAssets,{once:true});
-    else loadInvoiceAssets();
+    const loadInvoiceCore=()=>js('data-shop-invoice-core','/admin/invoice-core.js?v=4');
+    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadInvoiceCore,{once:true});
+    else loadInvoiceCore();
     return;
   }
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;

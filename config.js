@@ -39,23 +39,18 @@ window.SHOP_CONFIG = {
   const path = typeof location !== 'undefined' ? String(location.pathname || '') : '';
   if(typeof document==='undefined' || !path.startsWith('/admin')) return;
 
-  function js(key,src,onload){
+  function js(key,src){
     if(document.querySelector('script['+key+']')) return;
     const script=document.createElement('script');
     script.src=src;
     script.setAttribute(key,'true');
-    if(onload) script.onload=onload;
     document.head.appendChild(script);
   }
 
   if(path.startsWith('/admin/invoice')){
-    const loadInvoiceAssets=()=>{
-      js('data-shop-invoice-core','/admin/invoice-core.js?v=4',()=>{
-        js('data-shop-invoice-suite','/admin/invoice-suite.js?v=2');
-      });
-    };
-    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadInvoiceAssets,{once:true});
-    else loadInvoiceAssets();
+    const loadInvoiceCore=()=>js('data-shop-invoice-core','/admin/invoice-core.js?v=4');
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadInvoiceCore,{once:true});
+    else loadInvoiceCore();
     return;
   }
 
