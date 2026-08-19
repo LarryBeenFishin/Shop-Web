@@ -133,4 +133,4 @@ For the current Vercel project, set:
 
 before onboarding a second active shop.
 
-<!-- git integration reconnect check -->
+<!-- deployment parity test after Vercel settings alignment -->
