@@ -132,3 +132,5 @@ For the current Vercel project, set:
 `SHOP_SLUG=shop-web`
 
 before onboarding a second active shop.
+
+<!-- git integration reconnect check -->
