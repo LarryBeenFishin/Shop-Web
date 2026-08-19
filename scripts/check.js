@@ -66,8 +66,13 @@ try{
   checkScript(ADMIN_ASSET_LOADER,'generated admin asset loader');
   checkScript(generatedConfigSource({name:'CI Test Shop'},'ci-test'),'generated tenant config');
   const fallback=fs.readFileSync(path.join(ROOT,'config.js'),'utf8');
-  if(!fallback.includes('/admin/invoice-core.js?v=3') || !ADMIN_ASSET_LOADER.includes('/admin/invoice-core.js?v=3')){
+  const expectedCore='/admin/invoice-core.js?v=4';
+  const expectedSuite='/admin/invoice-suite.js?v=2';
+  if(!fallback.includes(expectedCore) || !ADMIN_ASSET_LOADER.includes(expectedCore)){
     throw new Error('fallback and generated configs must load the same invoice-core version');
+  }
+  if(!fallback.includes(expectedSuite) || !ADMIN_ASSET_LOADER.includes(expectedSuite)){
+    throw new Error('fallback and generated configs must load the same invoice-suite version');
   }
   console.log('OK  generated tenant config');
 }catch(err){
