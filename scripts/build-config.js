@@ -16,12 +16,6 @@ const ADMIN_ASSET_LOADER = `
     if(document.querySelector('link['+key+']'))return;
     const x=document.createElement('link');x.rel='stylesheet';x.href=src;x.setAttribute(key,'true');document.head.appendChild(x);
   }
-  if(path.startsWith('/admin/invoice')){
-    const loadInvoiceCore=()=>js('data-shop-invoice-core','/admin/invoice-core.js?v=4');
-    if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',loadInvoiceCore,{once:true});
-    else loadInvoiceCore();
-    return;
-  }
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
   css('data-shop-admin-skin','/admin/admin-redesign.css?v=3');
   css('data-shop-status-skin','/admin/status-hidden.css?v=1');
@@ -29,7 +23,6 @@ const ADMIN_ASSET_LOADER = `
   js('data-shop-vehicle-data','/assets/vehicle-data.js?v=1');
   js('data-shop-appt-modal','/admin/appointment-modal-redesign.js?v=1');
   js('data-shop-new-appt','/admin/new-appointment-enhancements.js?v=2');
-  js('data-shop-invoice-link','/admin/invoice-link.js?v=1');
 })();
 `;
 

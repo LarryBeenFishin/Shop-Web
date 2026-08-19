@@ -8,7 +8,6 @@
     { "source": "/admin/customers", "destination": "/admin/customers/index.html" },
     { "source": "/admin/inspection", "destination": "/admin/inspection/index.html" },
     { "source": "/admin/inspection-history", "destination": "/admin/inspection-history/index.html" },
-    { "source": "/admin/invoice", "destination": "/admin/invoice/index.html" },
     { "source": "/api/admin-inspection", "destination": "/api/admin-data?action=inspection" },
     { "source": "/api/admin-login", "destination": "/api/admin-auth?mode=login" },
     { "source": "/api/admin-logout", "destination": "/api/admin-auth?mode=logout" },

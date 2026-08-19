@@ -47,13 +47,6 @@ window.SHOP_CONFIG = {
     document.head.appendChild(script);
   }
 
-  if(path.startsWith('/admin/invoice')){
-    const loadInvoiceCore=()=>js('data-shop-invoice-core','/admin/invoice-core.js?v=4');
-    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadInvoiceCore,{once:true});
-    else loadInvoiceCore();
-    return;
-  }
-
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
   if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=3';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
@@ -61,5 +54,4 @@ window.SHOP_CONFIG = {
   if(!document.querySelector('script[data-shop-vehicle-data]')){const vehicleData=document.createElement('script');vehicleData.src='/assets/vehicle-data.js?v=1';vehicleData.dataset.shopVehicleData='true';document.head.appendChild(vehicleData);}
   if(!document.querySelector('script[data-shop-appt-modal]')){const script=document.createElement('script');script.src='/admin/appointment-modal-redesign.js?v=1';script.dataset.shopApptModal='true';document.head.appendChild(script);}
   if(!document.querySelector('script[data-shop-new-appt]')){const script=document.createElement('script');script.src='/admin/new-appointment-enhancements.js?v=2';script.dataset.shopNewAppt='true';document.head.appendChild(script);}
-  if(!document.querySelector('script[data-shop-invoice-link]')){const script=document.createElement('script');script.src='/admin/invoice-link.js?v=1';script.dataset.shopInvoiceLink='true';document.head.appendChild(script);}
 })();

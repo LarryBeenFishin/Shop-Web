@@ -65,45 +65,10 @@ try{
   const {ADMIN_ASSET_LOADER,generatedConfigSource}=require('./build-config');
   checkScript(ADMIN_ASSET_LOADER,'generated admin asset loader');
   checkScript(generatedConfigSource({name:'CI Test Shop'},'ci-test'),'generated tenant config');
-  const fallback=fs.readFileSync(path.join(ROOT,'config.js'),'utf8');
-  const expectedCore='/admin/invoice-core.js?v=4';
-  if(!fallback.includes(expectedCore) || !ADMIN_ASSET_LOADER.includes(expectedCore)){
-    throw new Error('fallback and generated configs must load the same invoice-core version');
-  }
   console.log('OK  generated tenant config');
 }catch(err){
   failed=true;
   console.error('FAIL generated tenant config');
-  console.error(err.stack||err.message||err);
-}
-
-// Guard against invoice autosave recursion and invalid global-state assumptions.
-try{
-  const invoiceHtml=fs.readFileSync(path.join(ROOT,'admin','invoice','index.html'),'utf8');
-  const core=fs.readFileSync(path.join(ROOT,'admin','invoice-core.js'),'utf8');
-  if(!core.includes('lastSavedFingerprint') || !core.includes('state.inFlight') || !core.includes('state.suppress')){
-    throw new Error('invoice-core.js is missing deterministic autosave safeguards');
-  }
-  if(!core.includes('syncMeta(false)')){
-    throw new Error('invoice save payload must read form state without re-queuing autosave');
-  }
-  // Only reject the actual window.invoice binding. Do not flag valid names such as window.invoicePayload.
-  if(/\bwindow\.invoice\b/.test(core)){
-    throw new Error('invoice is a top-level let binding; invoice-core.js must not access window.invoice');
-  }
-  if(!core.includes('const x=invoice||{}')){
-    throw new Error('invoice fingerprint must read the real invoice binding');
-  }
-  if(!invoiceHtml.includes("'invoice-save'")){
-    throw new Error('invoice page no longer contains the invoice save path');
-  }
-  if(/autosave-fix\.js/i.test(invoiceHtml)){
-    throw new Error('invoice page must not load the retired autosave patch');
-  }
-  console.log('OK  invoice autosave safeguards');
-}catch(err){
-  failed=true;
-  console.error('FAIL invoice autosave safeguards');
   console.error(err.stack||err.message||err);
 }
 
