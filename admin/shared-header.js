@@ -1,82 +1,24 @@
-/* Shared copy of the LIVE main admin navigation for nested admin pages. Invoice workspace stays full-screen. */
-/* Deployment trigger: invoice workspace must remain isolated from shared admin navigation. */
 (function(){
-  function install(){
-    const path=String(location.pathname||'').replace(/\/+$/,'')||'/';
-    if(path==='/admin' || path.startsWith('/admin/invoice') || !path.startsWith('/admin/') || document.getElementById('sharedAdminHeader')) return;
-    const cfg=window.SHOP_CONFIG||{};
-    document.body.classList.add('shared-admin-nav-installed');
-
-    const style=document.createElement('style');
-    style.id='sharedAdminHeaderStyles';
-    style.textContent=`
-      #sharedAdminHeader{background:#163051;width:100%;font-family:Arial,sans-serif;color:#163051;border-bottom:1px solid rgba(255,255,255,.08)}
-      #sharedAdminHeader *{box-sizing:border-box}
-      #sharedAdminHeader .admin-action-grid{max-width:1500px;margin:0 auto;padding:14px 24px 18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:stretch}
-      #sharedAdminHeader .admin-action-card{border:0;font-family:Arial,sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;text-align:left;color:#163051}
-      #sharedAdminHeader .logo-card{grid-column:1/4;min-height:52px;padding:0 4px;background:transparent!important;border:0!important;box-shadow:none!important;border-radius:0;justify-content:flex-start;pointer-events:none}
-      #sharedAdminHeader .logo-card .brand-box{width:auto;padding:0;background:transparent;color:#fff;border-radius:0;box-shadow:none;text-align:left;font-size:24px;font-weight:900;letter-spacing:-.03em}
-      #sharedAdminHeader .logout-card{grid-column:4;grid-row:1;justify-self:end;align-self:center;width:auto;min-width:112px;min-height:42px;padding:10px 16px;border-radius:11px;background:#af2727!important;color:#fff!important;box-shadow:none!important;gap:7px;justify-content:center}
-      #sharedAdminHeader .logout-card:hover{background:#911f1f!important}
-      #sharedAdminHeader .logout-card .card-icon-wrap{display:none}
-      #sharedAdminHeader .logout-card .action-title{font-size:14px!important;line-height:1;color:#fff!important}
-      #sharedAdminHeader .admin-action-card:not(.logo-card):not(.logout-card){min-height:82px;padding:14px 16px;gap:12px;border-radius:14px;border:1px solid rgba(22,48,81,.08);box-shadow:0 3px 10px rgba(5,18,36,.10);background:#fff;transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease}
-      #sharedAdminHeader .admin-action-card:not(.logo-card):not(.logout-card):hover{background:#fff;border-color:rgba(29,153,88,.42);box-shadow:0 7px 18px rgba(5,18,36,.14);transform:translateY(-1px)}
-      #sharedAdminHeader .card-icon-wrap{width:42px;height:42px;min-width:42px;border-radius:11px;background:#edf9f2;display:flex;align-items:center;justify-content:center}
-      #sharedAdminHeader .card-svg{width:30px;height:30px;fill:none;stroke:#1d9958;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;overflow:visible}
-      #sharedAdminHeader .svg-fill{fill:#1d9958;stroke:#1d9958}
-      #sharedAdminHeader .svg-white,#sharedAdminHeader .logout-svg{stroke:#fff}
-      #sharedAdminHeader .action-copy{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:0}
-      #sharedAdminHeader .action-title{display:block;font-size:16px;font-weight:800;line-height:1.15;letter-spacing:-.01em;color:#163051}
-      #sharedAdminHeader .action-subtitle{display:block;margin-top:4px;font-size:12.5px;font-weight:400;line-height:1.25;color:#66758b}
-      body.shared-admin-nav-installed{padding:0!important}
-      body.shared-admin-nav-installed>.wrap{padding:18px!important}
-      body.shared-admin-nav-installed main>.hero,body.shared-admin-nav-installed .wrap>.top{display:none!important}
-      @media(max-width:900px){
-        #sharedAdminHeader .admin-action-grid{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px 14px 14px;gap:10px}
-        #sharedAdminHeader .logo-card{grid-column:1;min-height:46px}
-        #sharedAdminHeader .logo-card .brand-box{font-size:20px}
-        #sharedAdminHeader .logout-card{grid-column:2;grid-row:1;min-height:38px;min-width:92px;padding:9px 13px}
-        #sharedAdminHeader .admin-action-card:not(.logo-card):not(.logout-card){min-height:74px;padding:12px 13px}
-        #sharedAdminHeader .card-icon-wrap{width:38px;height:38px;min-width:38px}
-        #sharedAdminHeader .card-svg{width:27px;height:27px}
-        #sharedAdminHeader .action-title{font-size:14px}
-        #sharedAdminHeader .action-subtitle{font-size:11.5px;margin-top:3px}
-      }
-      @media(max-width:540px){
-        #sharedAdminHeader .admin-action-grid{padding:10px 10px 12px;gap:8px}
-        #sharedAdminHeader .logo-card .brand-box{font-size:17px}
-        #sharedAdminHeader .logout-card{min-width:78px;padding:8px 11px}
-        #sharedAdminHeader .logout-card .action-title{font-size:12px!important}
-        #sharedAdminHeader .admin-action-card:not(.logo-card):not(.logout-card){min-height:64px;padding:10px;gap:8px}
-        #sharedAdminHeader .card-icon-wrap{width:34px;height:34px;min-width:34px;border-radius:9px}
-        #sharedAdminHeader .card-svg{width:24px;height:24px}
-        #sharedAdminHeader .action-title{font-size:13px}
-        #sharedAdminHeader .action-subtitle{display:none}
-      }
-    `;
-    document.head.appendChild(style);
-
-    const icons={
-      calendar:`<span class="card-icon-wrap"><svg class="card-svg" viewBox="0 0 64 64"><rect x="10" y="14" width="38" height="36" rx="6"/><path d="M18 9v10M40 9v10M10 25h38M18 34h16M18 42h12"/><circle class="svg-fill" cx="47" cy="47" r="12"/><path class="svg-white" d="M47 40v14M40 47h14"/></svg></span>`,
-      inspection:`<span class="card-icon-wrap"><svg class="card-svg" viewBox="0 0 64 64"><rect x="15" y="13" width="34" height="42" rx="6"/><path d="M25 13c0-4 3-7 7-7s7 3 7 7M25 13h14M25 31h14M25 42h14"/></svg></span>`,
-      history:`<span class="card-icon-wrap"><svg class="card-svg" viewBox="0 0 64 64"><path d="M16 22A20 20 0 1 1 13 37"/><path d="M16 22H6V12"/><path d="M32 21v14h13"/></svg></span>`,
-      customers:`<span class="card-icon-wrap"><svg class="card-svg" viewBox="0 0 64 64"><circle class="svg-fill" cx="25" cy="24" r="10"/><path class="svg-fill" d="M8 52c2-12 10-18 17-18s15 6 17 18H8z"/><circle class="svg-fill" cx="43" cy="27" r="8"/><path class="svg-fill" d="M36 52c2-9 8-14 14-14s11 5 13 14H36z"/></svg></span>`
-    };
-    const card=(href,icon,title,sub)=>`<a class="admin-action-card" href="${href}">${icon}<span class="action-copy"><span class="action-title">${title}</span><span class="action-subtitle">${sub}</span></span></a>`;
-    const header=document.createElement('header');
-    header.id='sharedAdminHeader';
-    header.innerHTML=`<div class="admin-action-grid">
-      <div class="admin-action-card logo-card"><div class="brand-box"></div></div>
-      <button class="admin-action-card logout-card" type="button"><span class="action-title">Log Out</span></button>
-      ${card('/admin?newAppointment=1',icons.calendar,'New Appointment','Schedule a new<br>service appointment')}
-      ${card('/admin/inspection',icons.inspection,'Inspection Form','Create a new<br>inspection form')}
-      ${card('/admin/inspection-history',icons.history,'Inspection History','View past<br>inspections')}
-      ${card('/admin/customers',icons.customers,'Customer Profiles','Manage customer<br>information')}
-    </div>`;
-    header.querySelector('.brand-box').textContent=cfg.name||'YOUR SHOP NAME';
-    header.querySelector('.logout-card').addEventListener('click',async()=>{try{await fetch('/api/admin-logout',{method:'POST'})}catch(e){} location.href='/admin'});
-    document.body.insertBefore(header,document.body.firstChild);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+  const path=String(location.pathname||'').replace(/\/+$/,'')||'/';
+  if(!path.startsWith('/admin')||path.startsWith('/admin/invoice'))return;
+  const cfg=window.SHOP_CONFIG||{};
+  if(!document.querySelector('link[data-premium-admin]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/admin/premium-admin.css?v=1';l.setAttribute('data-premium-admin','true');document.head.appendChild(l)}
+  const $=(s,r=document)=>r.querySelector(s);
+  const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+  function titleFor(){if(path==='/admin')return['Command Center','Appointments, customer communication, and daily workflow'];if(path.includes('customers'))return['Customers','Customer profiles, vehicles, and service history'];if(path.includes('inspection-history'))return['Inspection History','Review completed digital inspections'];if(path.includes('inspection'))return['Digital Inspections','Create and manage vehicle inspections'];return['Shop Admin','Manage your shop operations']}
+  function active(href){if(href==='/admin')return path==='/admin';return path.startsWith(href)}
+  function goNew(){if(path==='/admin'&&typeof window.openCreateModal==='function')window.openCreateModal();else location.href='/admin?newAppointment=1'}
+  function goMessages(){if(path==='/admin'){const b=$('#openTextPanelBtn');if(b)b.click();else location.href='/admin?messages=1'}else location.href='/admin?messages=1'}
+  function logout(){fetch('/api/admin-logout',{method:'POST'}).catch(()=>{}).finally(()=>location.href='/admin')}
+  function navItem(href,icon,label){return `<a href="${href}" class="${active(href)?'active':''}"><span class="pa-ico">${icon}</span><span>${label}</span></a>`}
+  function installShell(){if($('#premiumAdminShell'))return;const t=titleFor();const shell=document.createElement('div');shell.id='premiumAdminShell';shell.innerHTML=`<div class="pa-menu-scrim"></div><aside class="pa-sidebar"><div class="pa-brand"><div class="pa-brand-mark"><div class="pa-logo">S</div><div><strong>${esc(cfg.name||'Auto Shop')}</strong><small>Shop Console</small></div></div></div><nav class="pa-nav"><div class="pa-nav-label">Workspace</div>${navItem('/admin','⌂','Overview')}<button id="paNew"><span class="pa-ico">＋</span><span>New Appointment</span></button><button id="paMessages"><span class="pa-ico">✉</span><span>Messages</span></button>${navItem('/admin/customers','◉','Customers')}<div class="pa-nav-label">Service Tools</div>${navItem('/admin/inspection','✓','Inspections')}${navItem('/admin/inspection-history','↺','Inspection History')}<div class="pa-nav-label">Website</div><a href="/" target="_blank"><span class="pa-ico">↗</span><span>View Website</span></a></nav><div class="pa-side-foot"><button id="paLogout">Log out</button></div></aside><header class="pa-topbar"><div class="pa-topbar-left"><h1>${t[0]}</h1><p>${t[1]}</p></div><div class="pa-top-actions"><button class="pa-menu-btn secondary" id="paMenu">☰</button><button class="secondary" id="paTopMessages">💬 Messages</button><button class="primary" id="paTopNew">＋ New Appointment</button></div></header>`;document.body.insertBefore(shell,document.body.firstChild);$('#paNew').onclick=goNew;$('#paTopNew').onclick=goNew;$('#paMessages').onclick=goMessages;$('#paTopMessages').onclick=goMessages;$('#paLogout').onclick=logout;$('#paMenu').onclick=()=>document.body.classList.toggle('pa-menu-open');$('.pa-menu-scrim').onclick=()=>document.body.classList.remove('pa-menu-open')}
+  function showShell(){document.body.classList.add('pa-ready')}
+  function stat(label,value,foot,icon){return `<div class="pa-stat"><div class="pa-stat-top"><span class="pa-stat-label">${label}</span><span class="pa-stat-icon">${icon}</span></div><div class="pa-stat-value">${value}</div><div class="pa-stat-foot">${foot}</div></div>`}
+  function updateStats(){const box=$('#paStats');if(!box)return;const today=$$('.day.today .appointment-dot').length;const pendingTexts=new Set();$$('.status-pending,.status-new').forEach(x=>{const txt=(x.textContent||'').trim();if(txt)pendingTexts.add(txt)});const vals=$$('.pa-stat-value',box);if(vals[0])vals[0].textContent=String(today);if(vals[1])vals[1].textContent=String(pendingTexts.size)}
+  function enhanceDashboard(){if(path!=='/admin'||$('#paDashboardHead'))return;const dashboard=$('.dashboard');if(!dashboard)return;const head=document.createElement('section');head.id='paDashboardHead';head.className='pa-dashboard-head';const d=new Date();head.innerHTML=`<div class="pa-dashboard-head-inner"><div><h2>Good ${d.getHours()<12?'morning':d.getHours()<17?'afternoon':'evening'}.</h2><p>Here’s what’s happening with your shop today.</p></div><div class="pa-date-chip">${d.toLocaleDateString(undefined,{weekday:'long',month:'short',day:'numeric'})}</div></div>`;const stats=document.createElement('section');stats.id='paStats';stats.className='pa-stat-grid';stats.innerHTML=stat('Today','—','appointments','📅')+stat('Pending','—','awaiting confirmation','⏳')+stat('Messages','Open','customer inbox','💬')+stat('Customers','Profiles','customer database','👥');dashboard.before(head,stats);updateStats();new MutationObserver(updateStats).observe(dashboard,{subtree:true,childList:true,attributes:true})}
+  function handleQuery(){if(path!=='/admin')return;const q=new URLSearchParams(location.search);if(q.get('newAppointment')==='1')setTimeout(()=>typeof window.openCreateModal==='function'&&window.openCreateModal(),450);if(q.get('messages')==='1')setTimeout(()=>$('#openTextPanelBtn')?.click(),500)}
+  function hideInvoices(){document.querySelectorAll('a[href*="/admin/invoice"],button[data-invoice-link]').forEach(x=>x.remove())}
+  function boot(){installShell();enhanceDashboard();handleQuery();hideInvoices();new MutationObserver(hideInvoices).observe(document.body,{childList:true,subtree:true});const login=$('#loginScreen'),admin=$('#adminDashboard');if(login&&admin){const sync=()=>{const visible=getComputedStyle(admin).display!=='none';document.body.classList.toggle('pa-ready',visible)};sync();new MutationObserver(sync).observe(admin,{attributes:true,attributeFilter:['style','class']});setInterval(sync,800)}else showShell()}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
