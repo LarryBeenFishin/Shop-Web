@@ -86,7 +86,8 @@ try{
   if(!core.includes('syncMeta(false)')){
     throw new Error('invoice save payload must read form state without re-queuing autosave');
   }
-  if(core.includes('window.invoice')){
+  // Only reject the actual window.invoice binding. Do not flag valid names such as window.invoicePayload.
+  if(/\bwindow\.invoice\b/.test(core)){
     throw new Error('invoice is a top-level let binding; invoice-core.js must not access window.invoice');
   }
   if(!core.includes('const x=invoice||{}')){
