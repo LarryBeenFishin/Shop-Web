@@ -38,11 +38,27 @@ window.SHOP_CONFIG = {
 (function loadSharedAdminAssets(){
   const path = typeof location !== 'undefined' ? String(location.pathname || '') : '';
   if(typeof document==='undefined' || !path.startsWith('/admin')) return;
+
+  function js(key,src,onload){
+    if(document.querySelector('script['+key+']')) return;
+    const script=document.createElement('script');
+    script.src=src;
+    script.setAttribute(key,'true');
+    if(onload) script.onload=onload;
+    document.head.appendChild(script);
+  }
+
   if(path.startsWith('/admin/invoice')){
-    if(!document.querySelector('script[data-shop-invoice-core]')){const script=document.createElement('script');script.src='/admin/invoice-core.js?v=3';script.dataset.shopInvoiceCore='true';document.head.appendChild(script);}
-    if(!document.querySelector('script[data-shop-invoice-suite]')){const script=document.createElement('script');script.src='/admin/invoice-suite.js?v=1';script.dataset.shopInvoiceSuite='true';document.head.appendChild(script);}
+    const loadInvoiceAssets=()=>{
+      js('data-shop-invoice-core','/admin/invoice-core.js?v=4',()=>{
+        js('data-shop-invoice-suite','/admin/invoice-suite.js?v=2');
+      });
+    };
+    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',loadInvoiceAssets,{once:true});
+    else loadInvoiceAssets();
     return;
   }
+
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
   if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=3';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
