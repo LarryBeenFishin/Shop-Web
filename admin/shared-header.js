@@ -2,7 +2,7 @@
   const path=String(location.pathname||'').replace(/\/+$/,'')||'/';
   if(!path.startsWith('/admin')||path.startsWith('/admin/invoice'))return;
   const cfg=window.SHOP_CONFIG||{};
-  if(!document.querySelector('link[data-premium-admin]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/admin/premium-admin.css?v=1';l.setAttribute('data-premium-admin','true');document.head.appendChild(l)}
+  if(!document.querySelector('link[data-premium-admin]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/admin/premium-admin.css?v=2';l.setAttribute('data-premium-admin','true');document.head.appendChild(l)}
   const $=(s,r=document)=>r.querySelector(s);
   function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
   function titleFor(){if(path==='/admin')return['Command Center','Appointments, customer communication, and daily workflow'];if(path.includes('customers'))return['Customers','Customer profiles, vehicles, and service history'];if(path.includes('inspection-history'))return['Inspection History','Review completed digital inspections'];if(path.includes('inspection'))return['Digital Inspections','Create and manage vehicle inspections'];return['Shop Admin','Manage your shop operations']}
