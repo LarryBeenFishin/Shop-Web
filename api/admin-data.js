@@ -1,6 +1,7 @@
 const { verifyForShop } = require('./_auth');
 const { db, upsertCustomer, upsertCustomerVehicle, normalizePhone, auditEvent, missingTable } = require('./_db');
 const { resolveShop, applyShopScope, withShopId } = require('./_tenant');
+const { loadAvailability, saveAvailability } = require('./_availability');
 
 const APPT_STATUSES=['pending','new','confirmed','checked-in','in-progress','waiting-approval','completed','cancelled'];
 function json(res,code,data){return res.status(code).json(data)}
@@ -21,6 +22,17 @@ module.exports=async function handler(req,res){
   const action=s(req.query.action||req.body?.action,80);
 
   try{
+    if(req.method==='GET' && action==='availability'){
+      const {settings}=await loadAvailability(supabase,shop);
+      return json(res,200,{status:'success',timezone:shop.timezone||'America/Chicago',availability:settings});
+    }
+
+    if(req.method==='PUT' && action==='availability'){
+      const settings=await saveAvailability(supabase,shop,req.body?.availability||req.body||{});
+      await auditEvent(supabase,shop.id,'appointment.availability.updated','shop',shop.id,{weekly:settings.weekly,closure_count:settings.closures.length,slot_minutes:settings.slotMinutes});
+      return json(res,200,{status:'success',timezone:shop.timezone||'America/Chicago',availability:settings});
+    }
+
     if(req.method==='GET' && action==='appointments'){
       let q=supabase.from('appointments').select('*').order('appointment_date',{ascending:true}).order('appointment_time_key',{ascending:true}).limit(1000);
       q=applyShopScope(q,shop);

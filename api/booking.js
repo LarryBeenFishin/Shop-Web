@@ -2,6 +2,7 @@ const { Resend } = require('resend');
 const { db, upsertCustomer, auditEvent } = require('./_db');
 const { resolveShop, applyShopScope, withShopId } = require('./_tenant');
 const { sendShopPush } = require('./_notifications');
+const { validDate, validMonth, timeKey, availabilityForDate, monthBounds, loadAvailability } = require('./_availability');
 
 function esc(value) {
   return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -14,7 +15,6 @@ function normalizeTime(timeText) {
   if (match[3].toUpperCase() === 'AM' && hour === 12) hour = 0;
   return `${String(hour).padStart(2,'0')}:${match[2]}`;
 }
-function validDate(v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')); }
 function boolish(v) { return v === true || String(v).toLowerCase() === 'yes' || String(v).toLowerCase() === 'true'; }
 
 async function sendEmails(shop, appt) {
@@ -52,8 +52,39 @@ module.exports = async function handler(req, res) {
     const shop = await resolveShop(req, supabase);
 
     if (req.method === 'GET') {
+      const { settings } = await loadAvailability(supabase, shop);
+      const month = String(req.query.month || '');
+      if (month) {
+        if (!validMonth(month)) return res.status(400).json({ status: 'error', message: 'Invalid month' });
+        const bounds = monthBounds(month);
+        let query = supabase
+          .from('appointments')
+          .select('appointment_date,appointment_time,status')
+          .gte('appointment_date', bounds.first)
+          .lte('appointment_date', bounds.last)
+          .neq('status', 'cancelled');
+        query = applyShopScope(query, shop);
+        const { data, error } = await query;
+        if (error) throw error;
+        const booked = new Map();
+        for (const item of data || []) {
+          if (!booked.has(item.appointment_date)) booked.set(item.appointment_date, new Set());
+          booked.get(item.appointment_date).add(timeKey(item.appointment_time));
+        }
+        const openDates = [];
+        const closedDates = {};
+        for (let day = 1; day <= bounds.days; day++) {
+          const date = `${month}-${String(day).padStart(2,'0')}`;
+          const availability = availabilityForDate(settings, date, shop.timezone);
+          const remaining = availability.slots.filter(slot => !booked.get(date)?.has(timeKey(slot)));
+          if (availability.open && remaining.length) openDates.push(date);
+          else closedDates[date] = availability.reason || 'No appointment times remain';
+        }
+        return res.status(200).json({ status: 'success', month, open_dates: openDates, closed_dates: closedDates });
+      }
       const date = req.query.date;
       if (!validDate(date)) return res.status(400).json({ status: 'error', message: 'Invalid or missing date' });
+      const availability = availabilityForDate(settings, date, shop.timezone);
       let query = supabase
         .from('appointments')
         .select('appointment_time,status')
@@ -62,9 +93,15 @@ module.exports = async function handler(req, res) {
       query = applyShopScope(query, shop);
       const { data, error } = await query;
       if (error) throw error;
+      const unavailable = (data || []).map(x => x.appointment_time);
+      const bookedKeys = new Set(unavailable.map(timeKey));
       return res.status(200).json({
         status: 'success',
-        unavailable_times: (data || []).map(x => x.appointment_time)
+        is_open: availability.open,
+        message: availability.reason || '',
+        scheduled_times: availability.slots,
+        unavailable_times: unavailable,
+        available_times: availability.slots.filter(slot => !bookedKeys.has(timeKey(slot)))
       });
     }
 
@@ -74,6 +111,12 @@ module.exports = async function handler(req, res) {
     const missing = required.filter(k => !String(p[k] || '').trim());
     if (missing.length) return res.status(400).json({ status: 'error', message: `Missing: ${missing.join(', ')}` });
     if (!validDate(p.preferred_date_raw)) return res.status(400).json({ status: 'error', message: 'Invalid appointment date' });
+    const { settings } = await loadAvailability(supabase, shop);
+    const availability = availabilityForDate(settings, p.preferred_date_raw, shop.timezone);
+    const allowedTimes = new Set(availability.slots.map(timeKey));
+    if (!availability.open || !allowedTimes.has(timeKey(p.preferred_time))) {
+      return res.status(409).json({ status: 'unavailable', message: availability.reason || 'That appointment time is not available' });
+    }
 
     const customer=await upsertCustomer(supabase,{
       name:String(p.name).trim().slice(0,120),
