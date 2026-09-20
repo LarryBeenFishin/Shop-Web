@@ -35,7 +35,7 @@ module.exports=async function handler(req,res){
       if(error)throw error;
       const config=data?.public_config||shop.public_config||{};
       let technicians=[];
-      const {data:accounts,error:accountError}=await supabase.from('technician_accounts').select('id,name,username,active').eq('shop_id',shop.id).order('name');
+      const {data:accounts,error:accountError}=await supabase.from('technician_accounts').select('id,name,username,active').eq('shop_id',shop.id).eq('active',true).order('name');
       if(accountError){
         if(!missingTable(accountError,'technician_accounts'))throw accountError;
         technicians=uniqueTextList(config?.staff?.technicians).map(name=>({id:null,name,username:'',active:true,legacy:true}));
@@ -84,9 +84,12 @@ module.exports=async function handler(req,res){
 
     if(req.method==='DELETE' && action==='technician'){
       const id=s(req.query.id||req.body?.id,80);if(!id)return json(res,400,{error:'Missing technician id'});
-      const {data,error}=await supabase.from('technician_accounts').update({active:false,updated_at:new Date().toISOString()}).eq('id',id).eq('shop_id',shop.id).select('id,name,username,active').maybeSingle();
+      const {data:existing,error:findError}=await supabase.from('technician_accounts').select('id,name,username').eq('id',id).eq('shop_id',shop.id).maybeSingle();
+      if(findError)throw findError;if(!existing)return json(res,404,{error:'Technician account not found'});
+      const deletedUsername=`deleted-${existing.id.replace(/-/g,'').slice(0,8)}-${existing.username}`.slice(0,40);
+      const {data,error}=await supabase.from('technician_accounts').update({active:false,username:deletedUsername,updated_at:new Date().toISOString()}).eq('id',id).eq('shop_id',shop.id).select('id,name,username,active').maybeSingle();
       if(error)throw error;if(!data)return json(res,404,{error:'Technician account not found'});
-      await auditEvent(supabase,shop.id,'technician.deactivated','technician',data.id,{name:data.name});
+      await auditEvent(supabase,shop.id,'technician.deleted','technician',data.id,{name:data.name,username:existing.username});
       return json(res,200,{status:'success',technician:safeTechnician(data)});
     }
 

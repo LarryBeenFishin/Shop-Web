@@ -29,8 +29,10 @@ function safeAdmin(row){return {id:row.id,shop_id:row.shop_id,name:row.name,user
 async function platformAudit(supabase,shopId,action,metadata={}){
   try{await supabase.from('platform_audit_events').insert({shop_id:shopId||null,action,metadata:safeObject(metadata)})}catch(error){console.error('Platform audit error:',error?.message||error)}
 }
-async function countFor(supabase,table,shopId){
-  const {count,error}=await supabase.from(table).select('id',{count:'exact',head:true}).eq('shop_id',shopId);
+async function countFor(supabase,table,shopId,filters={}){
+  let query=supabase.from(table).select('id',{count:'exact',head:true}).eq('shop_id',shopId);
+  for(const [column,value] of Object.entries(filters))query=query.eq(column,value);
+  const {count,error}=await query;
   if(error){if(missingTable(error,table))return 0;throw error}
   return count||0;
 }
@@ -71,7 +73,7 @@ module.exports=async function handler(req,res){
       const batchMap=new Map();for(const batch of importBatches){if(!batchMap.has(batch.shop_id))batchMap.set(batch.shop_id,[]);batchMap.get(batch.shop_id).push(batch)}
       const result=await Promise.all((shops||[]).map(async shop=>{
         const [appointments,customers,inspections,technicians,requests]=await Promise.all([
-          countFor(supabase,'appointments',shop.id),countFor(supabase,'customers',shop.id),countFor(supabase,'inspections',shop.id),countFor(supabase,'technician_accounts',shop.id),countFor(supabase,'inspection_requests',shop.id)
+          countFor(supabase,'appointments',shop.id),countFor(supabase,'customers',shop.id),countFor(supabase,'inspections',shop.id),countFor(supabase,'technician_accounts',shop.id,{active:true}),countFor(supabase,'inspection_requests',shop.id)
         ]);
         return {...shop,domains:domainMap.get(shop.id)||[],admins:adminMap.get(shop.id)||[],migration:migrationMap.get(shop.id)||null,import_batches:batchMap.get(shop.id)||[],counts:{appointments,customers,inspections,technicians,requests}};
       }));
