@@ -74,6 +74,11 @@
           <div class="appt-section-help">Only the shop can see these notes.</div>
         </section>
 
+        <div class="appt-inspection-actions">
+          <button class="appt-create-inspection-btn" type="button" onclick="createInspectionFromAppointment()">Create Inspection</button>
+          <button class="appt-request-inspection-btn" type="button" onclick="requestInspectionFromAppointment()">Request Inspection</button>
+        </div>
+
         <div class="appt-modal-actions">
           <button class="appt-text-btn" onclick="textAppointment()">Text Customer</button>
           <button class="appt-save-btn" onclick="saveAppointment()">Save Changes</button>
@@ -83,6 +88,38 @@
 
       $('apptModal').classList.add('open');
       if(!a.seen)patchAppointment({id:a.id,seen:true}).catch(()=>{});
+    };
+
+    function appointmentParams(a){
+      const params=new URLSearchParams();
+      const values={
+        appointment:a.id,
+        customer:a.customer_id,
+        vehicleId:a.vehicle_id,
+        name:a.name,
+        phone:a.phone,
+        email:a.email,
+        year:a.year,
+        make:a.make,
+        model:a.model,
+        service:a.service,
+        message:a.message,
+        due:a.appointment_date
+      };
+      Object.entries(values).forEach(([key,value])=>{if(value!==undefined&&value!==null&&String(value).trim())params.set(key,String(value).trim())});
+      return params;
+    }
+
+    window.createInspectionFromAppointment=function(){
+      if(!activeAppt)return;
+      location.href='/admin/inspection?'+appointmentParams(activeAppt).toString();
+    };
+
+    window.requestInspectionFromAppointment=function(){
+      if(!activeAppt)return;
+      const params=appointmentParams(activeAppt);
+      params.set('new','1');
+      location.href='/admin/inspection-requests?'+params.toString();
     };
 
     window.saveAppointment=async function(){

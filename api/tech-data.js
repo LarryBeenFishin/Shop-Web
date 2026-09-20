@@ -21,7 +21,7 @@ module.exports=async function handler(req,res){
 
     if(req.method==='GET'&&(action==='session'||action==='requests')){
       let query=supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).eq('technician_id',technician.id).order('created_at',{ascending:false}).limit(200);
-      if(action==='requests'&&req.query.status)query=query.eq('status',clean(req.query.status,30));
+      if(action==='requests')query=req.query.status?query.eq('status',clean(req.query.status,30)):query.in('status',['requested','in_progress']);
       const {data,error}=await query;if(error)throw error;
       return json(res,200,{status:'success',shop:{name:shop.name},technician,requests:data||[]});
     }

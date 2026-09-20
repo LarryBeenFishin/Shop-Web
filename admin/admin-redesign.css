@@ -144,6 +144,10 @@
 .appt-message-box{min-height:58px;padding:13px 14px;border-radius:12px;border:1px solid #e3e9f1;background:#f8fafc;color:#34455e;font-size:14px;line-height:1.45;white-space:pre-wrap}
 .appt-message-box.empty-message{color:#8894a5;font-style:italic}
 .appt-notes{min-height:105px;border-radius:12px;padding:13px 14px;background:#fff;line-height:1.45}
+.appt-inspection-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:20px}
+.appt-inspection-actions button{min-height:46px;border-radius:11px;padding:11px 15px;font-size:14px}
+.appt-create-inspection-btn{background:var(--navy)!important}.appt-create-inspection-btn:hover{background:var(--navy-dark)!important}
+.appt-request-inspection-btn{background:#2563eb!important}.appt-request-inspection-btn:hover{background:#1d4ed8!important}
 .appt-modal-actions{display:grid;grid-template-columns:1fr 1.25fr auto;gap:9px;margin-top:20px;padding-top:18px;border-top:1px solid #e7ecf3}
 .appt-modal-actions button{min-height:46px;border-radius:11px;padding:11px 15px;font-size:14px}
 .appt-text-btn{background:var(--navy)!important}.appt-text-btn:hover{background:var(--navy-dark)!important}
@@ -202,6 +206,7 @@
 @media(max-width:420px){
   .appt-info-grid{grid-template-columns:1fr}
   .appt-reschedule-grid{grid-template-columns:1fr}
+  .appt-inspection-actions{grid-template-columns:1fr}
   .appt-modal-actions{grid-template-columns:1fr}
   .appt-delete-btn{grid-column:auto}
 }
