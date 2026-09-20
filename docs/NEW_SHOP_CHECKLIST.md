@@ -2,7 +2,11 @@
 
 Use this every time a new repair shop is added to Shop-Web.
 
-## 1. Create the tenant in Supabase
+## 1. Create the tenant in the owner portal
+
+Open `/platform`, select **Add shop**, and enter the shop details, first domain, and first administrator account. The portal creates the required tenant records without exposing the Supabase service key.
+
+The corresponding `public.shops` row contains:
 
 In `public.shops`, add a row with:
 
@@ -41,9 +45,9 @@ Example:
 
 The shop name comes from the `name` column and automatically overrides the generic `config.js` name.
 
-## 2. Add the domain mapping
+## 2. Confirm the domain mapping
 
-After you know the production hostname/custom domain, add it to `public.shop_domains`:
+After you know the production hostname/custom domain, confirm it in the shop's **Domains** section in `/platform`:
 
 - `shop_id` = the new shop's ID
 - `hostname` = domain without `https://`, path, port, or `www.`
@@ -71,6 +75,8 @@ Create new per-shop values:
 - `SHOP_SLUG=<the slug from Supabase>`
 - `ADMIN_PASSWORD=<shop admin password>`
 - `ADMIN_SESSION_SECRET=<new long random string>`
+
+`ADMIN_PASSWORD` is a legacy fallback. The preferred login is the administrator username and password created in `/platform`.
 
 If using Twilio, add the correct credentials/number for that shop deployment.
 

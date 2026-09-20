@@ -46,6 +46,14 @@ The API resolves the active shop first and then applies that `shop_id` to every 
 - Browser push notifications
 - Audit trail in Supabase
 
+### Platform owner
+- Private `/platform` workspace for managing every shop
+- Create, pause, or archive shop accounts
+- Domain mapping and primary-domain selection
+- Per-shop administrator accounts with hashed passwords
+- Cross-shop activity totals and platform audit history
+- Legacy-data transfer status tracking
+
 ## Database setup
 
 For a brand-new Supabase project run these files in order:
@@ -57,10 +65,13 @@ For a brand-new Supabase project run these files in order:
 5. `supabase/dynamic_inspections.sql`
 6. `supabase/technician_portal.sql`
 7. `supabase/automatic_inspection_requests.sql`
+8. `supabase/platform_owner_portal.sql`
 
 `multi_tenant_v2.sql` creates the `shops` tenant table, attaches `shop_id` to all operational tables, migrates existing data into the first shop, creates tenant-aware indexes, and adds the audit log.
 
 `automatic_inspection_requests.sql` enables unassigned inspection requests, links them to appointments, and adds upcoming website appointments that do not already have a request.
+
+`platform_owner_portal.sql` adds per-shop admin accounts, transfer tracking, and the platform-owner audit log.
 
 ## Vercel environment variables
 
@@ -72,6 +83,9 @@ Shared across deployments:
 - `VAPID_SUBJECT` (when push is enabled)
 - `VAPID_PUBLIC_KEY` (when push is enabled)
 - `VAPID_PRIVATE_KEY` (when push is enabled)
+- `PLATFORM_OWNER_USERNAME` — optional; defaults to `owner`
+- `PLATFORM_OWNER_PASSWORD` — configure only on the deployment used to manage the platform
+- `PLATFORM_SESSION_SECRET` — a separate long random value used only for owner sessions
 
 Set separately for each shop's Vercel project:
 
@@ -91,6 +105,8 @@ Legacy fallbacks still supported:
 
 For new shops, store those settings on the `shops` row instead.
 
+`ADMIN_PASSWORD` remains available as a transition fallback. New shop administrators should be created in `/platform`; those accounts use a username and a hashed password stored in `shop_admin_accounts`.
+
 ## Shop-specific website config
 
 Each row in `public.shops` has a `public_config` JSON object.
@@ -107,8 +123,8 @@ See `docs/NEW_SHOP_CHECKLIST.md`.
 
 At a high level:
 
-1. Add a row to `public.shops` with a unique slug and its `public_config`.
-2. Optionally add its domain to `public.shop_domains`.
+1. Open `/platform` and create the shop, domain mapping, and first admin account.
+2. Complete any shop-specific website configuration in `public_config`.
 3. Create another Vercel project from this same GitHub repository.
 4. Add the shared Supabase environment variables.
 5. Set that Vercel project's `SHOP_SLUG` to the new shop slug.
@@ -123,6 +139,8 @@ No database copy and no backend code copy are required.
 
 - Never expose `SUPABASE_SERVICE_ROLE_KEY` in browser code.
 - Admin session cookies are HTTP-only and now include the tenant/shop identity.
+- Platform-owner sessions use a separate secret and a `SameSite=Strict` HTTP-only cookie.
+- Configure platform-owner environment variables on only the deployment you use as the owner workspace.
 - Never make an API query against an operational table without applying the shop scope.
 - Twilio webhook signature validation can be enabled with `TWILIO_VALIDATE_WEBHOOKS=true`.
 - Row Level Security remains enabled on tenant tables; server functions use the Supabase secret/service key and enforce tenant scope in application code.

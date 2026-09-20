@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#081221">
+  <title>Platform Owner | Shop-Web</title>
+  <link rel="icon" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/platform/platform.css?v=1">
+</head>
+<body>
+  <section class="login" id="loginView">
+    <form class="login-card" id="loginForm">
+      <div class="owner-mark">S</div>
+      <div class="eyebrow">Shop-Web Platform</div>
+      <h1>Owner sign in</h1>
+      <p>Manage every shop from one private workspace.</p>
+      <label for="ownerUsername">Username</label>
+      <input id="ownerUsername" name="username" autocomplete="username" value="owner" required>
+      <label for="ownerPassword">Password</label>
+      <input id="ownerPassword" name="password" type="password" autocomplete="current-password" required>
+      <button class="primary full" type="submit">Sign in</button>
+      <div class="form-error" id="loginError" role="alert"></div>
+    </form>
+  </section>
+
+  <div class="shell hidden" id="appView">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">S</div><div><strong>Shop-Web</strong><span>Platform owner</span></div></div>
+      <nav aria-label="Platform navigation">
+        <a class="active" href="#shops"><span>▦</span> Shops</a>
+        <a href="#activity"><span>↻</span> Activity</a>
+      </nav>
+      <div class="sidebar-note"><span class="pulse"></span><div><strong>Owner access</strong><small>Private platform controls</small></div></div>
+      <button class="logout" id="logoutButton">Log out</button>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <button class="menu-button" id="menuButton" aria-label="Open navigation">☰</button>
+        <div><div class="eyebrow">Platform workspace</div><h1>Your shops</h1></div>
+        <button class="primary" id="newShopButton">＋ Add shop</button>
+      </header>
+
+      <section class="content" id="shops">
+        <div class="metrics" aria-label="Platform totals">
+          <article><span>Total shops</span><strong id="totalShops">0</strong><small id="totalShopsMeta">No shops yet</small></article>
+          <article><span>Active shops</span><strong id="activeShops">0</strong><small>Currently serving customers</small></article>
+          <article><span>Appointments</span><strong id="totalAppointments">0</strong><small>Across every shop</small></article>
+          <article><span>Data transfers</span><strong id="transferCount">0</strong><small>Completed migrations</small></article>
+        </div>
+
+        <section class="panel shop-panel">
+          <div class="panel-head">
+            <div><h2>Shop directory</h2><p>Create shops, connect domains, and manage access.</p></div>
+            <div class="filters">
+              <label class="search"><span>⌕</span><input id="shopSearch" placeholder="Search shops or domains" aria-label="Search shops"></label>
+              <select id="statusFilter" aria-label="Filter by status"><option value="all">All statuses</option><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select>
+            </div>
+          </div>
+          <div class="shop-list-head"><span>Shop</span><span>Domain</span><span>Activity</span><span>Status</span><span></span></div>
+          <div class="shop-list" id="shopList"></div>
+        </section>
+
+        <section class="panel activity-panel" id="activity">
+          <div class="panel-head"><div><h2>Recent activity</h2><p>Important platform-level changes.</p></div></div>
+          <div id="activityList" class="activity-list"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+  <div class="scrim" id="menuScrim"></div>
+
+  <dialog id="createShopDialog" class="modal">
+    <form method="dialog" class="modal-card" id="createShopForm">
+      <div class="modal-head"><div><div class="eyebrow">New account</div><h2>Add a shop</h2><p>Create the shop, its first domain, and its first admin.</p></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div>
+      <div class="form-section"><h3>Shop details</h3><div class="form-grid">
+        <label>Business name<input name="name" required placeholder="Smith Auto Repair"></label>
+        <label>Shop slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="smith-auto"></label>
+        <label>Timezone<select name="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option></select></label>
+        <label>Primary domain<input name="primary_domain" placeholder="smithauto.com"></label>
+      </div></div>
+      <div class="form-section"><h3>Primary contact</h3><div class="form-grid three">
+        <label>Name<input name="contact_name" placeholder="Shop owner"></label>
+        <label>Email<input name="contact_email" type="email" placeholder="owner@shop.com"></label>
+        <label>Phone<input name="contact_phone" type="tel" placeholder="(555) 555-5555"></label>
+      </div></div>
+      <div class="form-section"><h3>First admin account</h3><div class="form-grid three">
+        <label>Name<input name="admin_name" placeholder="Shop administrator"></label>
+        <label>Username<input name="admin_username" autocomplete="off" placeholder="smithadmin"></label>
+        <label>Temporary password<input name="admin_password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label>
+      </div></div>
+      <div class="dialog-error" id="createShopError" role="alert"></div>
+      <div class="modal-actions"><button class="secondary" value="cancel">Cancel</button><button class="primary" id="createShopSubmit" type="submit">Create shop</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="shopDialog" class="modal shop-modal">
+    <div class="modal-card">
+      <div class="modal-head"><div><div class="eyebrow">Shop workspace</div><h2 id="detailTitle">Shop</h2><p id="detailSubtitle"></p></div><button class="icon-button" id="closeShopDialog" aria-label="Close">×</button></div>
+      <div class="detail-layout">
+        <div class="detail-main">
+          <section class="form-section"><div class="section-heading"><h3>Business details</h3><span class="status-badge" id="detailStatus"></span></div><form id="shopDetailsForm"><div class="form-grid">
+            <label>Business name<input name="name" required></label>
+            <label>Shop slug<input name="slug" required></label>
+            <label>Timezone<select name="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option></select></label>
+            <label>Status<select name="status"><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></label>
+            <label>Notification email<input name="notification_email" type="email"></label>
+            <label>Logo URL<input name="logo_url" type="url" placeholder="https://..."></label>
+            <label>Contact name<input name="contact_name"></label>
+            <label>Contact email<input name="contact_email" type="email"></label>
+            <label>Contact phone<input name="contact_phone" type="tel"></label>
+          </div><div class="inline-actions"><button class="primary" type="submit">Save details</button><a class="secondary button-link" id="openAdminLink" target="_blank" rel="noopener">Open shop admin ↗</a></div></form></section>
+
+          <section class="form-section"><div class="section-heading"><div><h3>Domains</h3><p>A mapped domain tells the platform which shop to load.</p></div></div><div id="domainList" class="managed-list"></div><form id="addDomainForm" class="inline-form"><input name="hostname" placeholder="shopdomain.com" required><label class="check"><input type="checkbox" name="is_primary"> Primary</label><button class="secondary" type="submit">Add domain</button></form></section>
+
+          <section class="form-section"><div class="section-heading"><div><h3>Shop administrators</h3><p>Admins can access this shop only.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" required><input name="username" placeholder="Username" required><input name="password" type="password" minlength="8" placeholder="Temporary password" required><button class="secondary" type="submit">Add admin</button></form></section>
+        </div>
+
+        <aside class="detail-side">
+          <section class="side-card"><h3>Shop activity</h3><div class="mini-metrics" id="detailMetrics"></div></section>
+          <section class="side-card"><h3>Data transfer</h3><form id="migrationForm"><label>Status<select name="status"><option value="not_started">Not started</option><option value="ready">Files ready</option><option value="in_progress">In progress</option><option value="review">Ready for review</option><option value="completed">Completed</option></select></label><label>Source<input name="source" placeholder="Google Sheets"></label><label>Notes<textarea name="notes" rows="4" placeholder="Files received, checks remaining..."></textarea></label><button class="secondary full" type="submit">Update transfer</button></form></section>
+        </aside>
+      </div>
+      <div class="dialog-error" id="shopDialogError" role="alert"></div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="/platform/platform.js?v=1" defer></script>
+</body>
+</html>
