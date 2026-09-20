@@ -38,7 +38,7 @@ async function load(){
   try{
     const r=await fetch('/api/public-inspection?id='+encodeURIComponent(id)),j=await r.json();
     if(!r.ok||j.status!=='success')throw new Error('Inspection not found.');
-    const i=j.inspection,shopName=cfg.name||j.shop?.name||'AUTO SHOP';
+    const i=j.inspection,shopName=j.shop?.name||cfg.name||'AUTO SHOP';
     const dynamic=Array.isArray(i.inspection_items)&&i.inspection_items.length?i.inspection_items.map(x=>[x.title,x.status,x.notes]):legacyItems(i);
     report.innerHTML=`
       <header class="report-hero">

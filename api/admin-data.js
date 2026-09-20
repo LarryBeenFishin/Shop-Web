@@ -1,6 +1,6 @@
 const { verifyForShop } = require('./_auth');
 const { db, upsertCustomer, upsertCustomerVehicle, normalizePhone, auditEvent, missingTable } = require('./_db');
-const { resolveShop, applyShopScope, withShopId } = require('./_tenant');
+const { resolveShop, applyShopScope, withShopId, clearShopCache } = require('./_tenant');
 const { loadAvailability, saveAvailability } = require('./_availability');
 
 const APPT_STATUSES=['pending','new','confirmed','checked-in','in-progress','waiting-approval','completed','cancelled'];
@@ -8,6 +8,7 @@ function json(res,code,data){return res.status(code).json(data)}
 function s(v,n=3000){return String(v??'').trim().slice(0,n)}
 function bool(v){return v===true||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='yes'}
 function arr(v){return Array.isArray(v)?v:[]}
+function uniqueTextList(value,maxItems=50,maxLength=120){const out=[],seen=new Set();for(const item of arr(value)){const text=s(item,maxLength),key=text.toLowerCase();if(!text||seen.has(key))continue;seen.add(key);out.push(text);if(out.length>=maxItems)break}return out}
 function timeKey(v){
   const m=s(v,30).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if(!m) return s(v,30);
   let h=Number(m[1]); if(m[3].toUpperCase()==='PM'&&h!==12)h+=12; if(m[3].toUpperCase()==='AM'&&h===12)h=0;
@@ -22,6 +23,29 @@ module.exports=async function handler(req,res){
   const action=s(req.query.action||req.body?.action,80);
 
   try{
+    if(req.method==='GET' && action==='shop-settings'){
+      if(!shop.id)return json(res,200,{status:'success',shop:{name:shop.name,technicians:[]}});
+      const {data,error}=await supabase.from('shops').select('name,public_config').eq('id',shop.id).maybeSingle();
+      if(error)throw error;
+      const config=data?.public_config||shop.public_config||{};
+      return json(res,200,{status:'success',shop:{name:data?.name||shop.name,technicians:uniqueTextList(config?.staff?.technicians)}});
+    }
+
+    if(req.method==='PUT' && action==='shop-settings'){
+      if(!shop.id)return json(res,400,{error:'Multi-shop setup is required before shop settings can be saved'});
+      const name=s(req.body?.name,120),technicians=uniqueTextList(req.body?.technicians);
+      if(!name)return json(res,400,{error:'Business name is required'});
+      const {data:current,error:loadError}=await supabase.from('shops').select('public_config').eq('id',shop.id).maybeSingle();
+      if(loadError)throw loadError;
+      const config=current?.public_config||shop.public_config||{};
+      const publicConfig={...config,staff:{...(config.staff||{}),technicians}};
+      const {data,error}=await supabase.from('shops').update({name,public_config:publicConfig,updated_at:new Date().toISOString()}).eq('id',shop.id).select('name').single();
+      if(error)throw error;
+      clearShopCache(shop);
+      await auditEvent(supabase,shop.id,'shop.settings.updated','shop',shop.id,{name,technician_count:technicians.length});
+      return json(res,200,{status:'success',shop:{name:data.name,technicians}});
+    }
+
     if(req.method==='GET' && action==='availability'){
       const {settings}=await loadAvailability(supabase,shop);
       return json(res,200,{status:'success',timezone:shop.timezone||'America/Chicago',availability:settings});

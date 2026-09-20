@@ -19,7 +19,9 @@ module.exports=async function handler(req,res){
       out[`${key}Status`]=data[`${key}_status`];
       out[`${key}Notes`]=data[`${key}_notes`];
     }
-    return res.status(200).json({status:'success',inspection:out,shop:{name:shop.name,slug:shop.slug}});
+    let shopName=shop.name;
+    if(shop.id){const {data:shopRow,error:shopError}=await supabase.from('shops').select('name').eq('id',shop.id).maybeSingle();if(shopError)throw shopError;if(shopRow?.name)shopName=shopRow.name;}
+    return res.status(200).json({status:'success',inspection:out,shop:{name:shopName,slug:shop.slug}});
   }catch(err){
     console.error(err);
     return res.status(500).json({status:'error',message:'Unable to load inspection'});

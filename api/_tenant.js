@@ -45,6 +45,12 @@ function putCache(key, value) {
   return value;
 }
 
+function clearShopCache(shop) {
+  for (const [key, item] of cache.entries()) {
+    if ((shop?.id && item?.value?.id === shop.id) || (shop?.slug && item?.value?.slug === shop.slug)) cache.delete(key);
+  }
+}
+
 async function shopBySlug(supabase, slug) {
   const key = `slug:${slug}`;
   const hit = cached(key);
@@ -147,5 +153,6 @@ module.exports = {
   applyShopScope,
   withShopId,
   hostFromRequest,
-  legacyShop
+  legacyShop,
+  clearShopCache
 };
