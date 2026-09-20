@@ -1,4 +1,4 @@
-const state={shops:[],events:[],selectedId:null};
+const state={shops:[],events:[],selectedId:null,importSetupRequired:false,importFile:null,importRows:[],importPreview:null};
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const number=value=>new Intl.NumberFormat().format(Number(value)||0);
@@ -15,6 +15,13 @@ async function api(action,options={}){
   if(!response.ok)throw new Error(data.error||'The platform could not complete that request');
   return data;
 }
+async function importApi(action,body){
+  const response=await fetch(`/api/platform-import?action=${encodeURIComponent(action)}`,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const data=await response.json().catch(()=>({}));
+  if(response.status===401){showLogin();throw new Error('Your owner session has expired')}
+  if(!response.ok)throw new Error(data.error||'The data transfer could not complete that request');
+  return data;
+}
 function toast(message,error=false){const node=$('toast');node.textContent=message;node.classList.toggle('error',error);node.classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>node.classList.remove('show'),2600)}
 function showLogin(){$('loginView').classList.remove('hidden');$('appView').classList.add('hidden')}
 function showApp(){$('loginView').classList.add('hidden');$('appView').classList.remove('hidden')}
@@ -22,7 +29,7 @@ function initials(name){return String(name||'S').split(/\s+/).slice(0,2).map(wor
 function selected(){return state.shops.find(shop=>shop.id===state.selectedId)}
 
 async function load(){
-  const data=await api('overview');state.shops=data.shops||[];state.events=data.events||[];render();showApp();
+  const data=await api('overview');state.shops=data.shops||[];state.events=data.events||[];state.importSetupRequired=data.import_setup_required===true;render();showApp();
   if(state.selectedId){const exists=selected();if(exists)renderDetail(exists);else $('shopDialog').close()}
 }
 function render(){
@@ -69,12 +76,13 @@ async function createShop(event){
   const form=event.currentTarget,data=Object.fromEntries(new FormData(form));$('createShopError').textContent='';$('createShopSubmit').disabled=true;
   try{await api('shop',{method:'POST',body:JSON.stringify(data)});form.reset();$('createShopDialog').close();await load();toast(`${data.name} was created`)}catch(error){$('createShopError').textContent=error.message}finally{$('createShopSubmit').disabled=false}
 }
-function openShop(id){state.selectedId=id;const shop=selected();if(!shop)return;renderDetail(shop);$('shopDialog').showModal()}
+function openShop(id){state.selectedId=id;resetImport();const shop=selected();if(!shop)return;renderDetail(shop);$('shopDialog').showModal()}
 function renderDetail(shop){
   $('detailTitle').textContent=shop.name;$('detailSubtitle').textContent=shop.slug;$('detailStatus').className=`status-badge status-${shop.status}`;$('detailStatus').textContent=shop.status;
   const form=$('shopDetailsForm'),contact=shop.public_config?.contact||{},brand=shop.public_config?.brand||{};
   for(const [name,value] of Object.entries({name:shop.name,slug:shop.slug,timezone:shop.timezone,status:shop.status,notification_email:shop.notification_email||'',logo_url:brand.logo_url||'',contact_name:contact.name||'',contact_email:contact.email||'',contact_phone:contact.phone||''})){if(form.elements[name])form.elements[name].value=value}
   const primary=(shop.domains||[]).find(domain=>domain.is_primary)||(shop.domains||[])[0];
+  $('openWebsiteLink').href=primary?`https://${primary.hostname}`:'#';$('openWebsiteLink').classList.toggle('hidden',!primary);
   $('openAdminLink').href=primary?`https://${primary.hostname}/admin`:'#';$('openAdminLink').classList.toggle('hidden',!primary);
   renderDomains(shop);renderAdmins(shop);renderDetailMetrics(shop);renderMigration(shop);
 }
@@ -89,17 +97,99 @@ function renderAdmins(shop){
   document.querySelectorAll('[data-reset-admin]').forEach(button=>button.onclick=()=>resetAdmin(button.dataset.resetAdmin));
   document.querySelectorAll('[data-toggle-admin]').forEach(button=>button.onclick=()=>toggleAdmin(button.dataset.toggleAdmin,button.dataset.active==='true'));
 }
-function renderMigration(shop){const migration=shop.migration||{};const form=$('migrationForm');form.elements.status.value=migration.status||'not_started';form.elements.source.value=migration.source||'';form.elements.notes.value=migration.notes||''}
+function renderMigration(shop){
+  const migration=shop.migration||{},status=migration.status||'not_started',form=$('migrationForm');form.elements.status.value=status;form.elements.source.value=migration.source||'';form.elements.notes.value=migration.notes||'';
+  const labels={not_started:'Not started',ready:'Files ready',in_progress:'In progress',review:'Ready for review',completed:'Completed'};$('transferBadge').textContent=labels[status]||status;
+  const stages=['ready','in_progress','review','completed'],current=stages.indexOf(status);$('transferSteps').innerHTML=stages.map((stage,index)=>`<div class="transfer-step ${index<current||status==='completed'?'done':''} ${index===current&&status!=='completed'?'current':''}">${esc(labels[stage])}</div>`).join('');
+  $('importSetupWarning').classList.toggle('hidden',!state.importSetupRequired);$('previewImportButton').disabled=state.importSetupRequired||!state.importFile;
+  renderImportHistory(shop);
+}
+function renderImportHistory(shop){
+  const batches=shop.import_batches||[];
+  $('importHistory').innerHTML=batches.length?batches.map(batch=>{
+    const canRollback=['completed','partial','failed'].includes(batch.status),label=String(batch.data_type||'records').replace(/^./,letter=>letter.toUpperCase());
+    return `<div class="batch-row"><div><strong>${esc(batch.filename||`${label} import`)}</strong><small>${esc(label)} · ${esc(date(batch.created_at))} · <span class="batch-status ${esc(batch.status)}">${esc(String(batch.status).replaceAll('_',' '))}</span></small></div><div class="batch-stat"><span>Imported</span><b>${number(batch.imported_rows)}</b></div><div class="batch-stat"><span>Duplicates</span><b>${number(batch.skipped_rows)}</b></div><div class="batch-stat"><span>Invalid</span><b>${number(batch.invalid_rows)}</b></div><div class="row-actions">${canRollback?`<button class="tiny-button danger" type="button" data-rollback-batch="${esc(batch.id)}" data-batch-name="${esc(batch.filename||label)}">Roll back</button>`:''}</div></div>`;
+  }).join(''):'<div class="history-empty">No imports have been committed for this shop.</div>';
+  document.querySelectorAll('[data-rollback-batch]').forEach(button=>button.onclick=()=>rollbackImport(button.dataset.rollbackBatch,button.dataset.batchName));
+}
+function resetImport(){
+  state.importFile=null;state.importRows=[];state.importPreview=null;
+  if($('importFile'))$('importFile').value='';if($('fileName'))$('fileName').textContent='No file selected';
+  if($('previewImportButton'))$('previewImportButton').disabled=true;if($('previewEmpty'))$('previewEmpty').classList.remove('hidden');if($('previewResults'))$('previewResults').classList.add('hidden');
+  if($('confirmImportCheck'))$('confirmImportCheck').checked=false;if($('commitImportButton'))$('commitImportButton').disabled=true;
+}
+function parseCsv(text){
+  const records=[];let row=[],field='',quoted=false;
+  for(let index=0;index<text.length;index++){
+    const char=text[index],next=text[index+1];
+    if(char==='"'){if(quoted&&next==='"'){field+='"';index++}else quoted=!quoted;continue}
+    if(char===','&&!quoted){row.push(field);field='';continue}
+    if((char==='\n'||char==='\r')&&!quoted){if(char==='\r'&&next==='\n')index++;row.push(field);field='';if(row.some(value=>String(value).trim()))records.push(row);row=[];continue}
+    field+=char;
+  }
+  row.push(field);if(row.some(value=>String(value).trim()))records.push(row);if(records.length<2)return [];
+  const headers=records.shift().map((header,index)=>String(header||`Column ${index+1}`).replace(/^\uFEFF/,'').trim());
+  return records.map(values=>Object.fromEntries(headers.map((header,index)=>[header,values[index]??''])));
+}
+async function readImportFile(file){
+  if(file.size>2.5*1024*1024)throw new Error('Choose a file smaller than 2.5 MB');
+  const text=await file.text(),isJson=file.name.toLowerCase().endsWith('.json')||file.type.includes('json');
+  let rows;if(isJson){const parsed=JSON.parse(text);rows=Array.isArray(parsed)?parsed:Array.isArray(parsed?.rows)?parsed.rows:Array.isArray(parsed?.data)?parsed.data:null}else rows=parseCsv(text);
+  if(!Array.isArray(rows))throw new Error('JSON must contain an array of records');if(!rows.length)throw new Error('The selected file has no data rows');if(rows.length>2000)throw new Error('Split this export into files of 2,000 rows or fewer');
+  if(rows.some(row=>!row||typeof row!=='object'||Array.isArray(row)))throw new Error('Every imported row must contain named fields');return rows;
+}
+async function chooseImportFile(file){
+  resetImport();if(!file)return;
+  try{const rows=await readImportFile(file);state.importFile=file;state.importRows=rows;$('fileName').textContent=`${file.name} · ${number(rows.length)} rows`;$('previewImportButton').disabled=state.importSetupRequired;toast('File ready for preview')}catch(error){showDialogError(error)}
+}
+async function previewImport(){
+  const shop=selected();if(!shop||!state.importFile)return;
+  const button=$('previewImportButton');button.disabled=true;button.textContent='Checking file…';$('confirmImportCheck').checked=false;$('commitImportButton').disabled=true;
+  try{
+    const preview=await importApi('preview',{shop_id:shop.id,data_type:$('importDataType').value,rows:state.importRows});state.importPreview=preview;
+    $('previewReady').textContent=number(preview.ready);$('previewDuplicates').textContent=number(preview.duplicates);$('previewInvalid').textContent=number(preview.invalid);
+    $('previewRows').innerHTML=(preview.sample||[]).map(item=>`<tr><td>${number(item.row)}</td><td><strong>${esc(item.name||item.vehicle||'Record')}</strong><br><small>${esc([item.phone,item.date,item.vehicle].filter(Boolean).join(' · '))}</small></td><td><span class="row-result ${esc(item.status)}">${esc(item.status)}</span><br><small>${esc(item.reason)}</small></td></tr>`).join('');
+    $('previewEmpty').classList.add('hidden');$('previewResults').classList.remove('hidden');$('commitImportButton').disabled=true;
+    toast(`${number(preview.ready)} rows are ready to import`);
+  }catch(error){showDialogError(error)}finally{button.disabled=state.importSetupRequired||!state.importFile;button.textContent='Preview import'}
+}
+async function commitImport(){
+  const shop=selected(),preview=state.importPreview;if(!shop||!state.importFile||!preview||!$('confirmImportCheck').checked)return;
+  const button=$('commitImportButton');button.disabled=true;button.textContent='Importing…';
+  try{
+    const result=await importApi('import',{shop_id:shop.id,data_type:$('importDataType').value,filename:state.importFile.name,rows:state.importRows});
+    toast(`${number(result.imported)} rows imported. Review the shop before completing the transfer.`);resetImport();await load();
+  }catch(error){showDialogError(error)}finally{button.textContent='Confirm import';button.disabled=!$('confirmImportCheck').checked||!state.importPreview}
+}
+async function rollbackImport(batchId,name){
+  if(!confirm(`Roll back “${name}”?\n\nThis removes only records created by that import batch. Customer profiles now used by later records will be kept.`))return;
+  try{const result=await importApi('rollback',{shop_id:state.selectedId,batch_id:batchId});await load();const removed=result.removed||{};toast(`Rollback complete: ${number((removed.appointments||0)+(removed.inspections||0)+(removed.customers||0))} records removed`)}catch(error){showDialogError(error)}
+}
 
 async function saveShop(event){event.preventDefault();const shop=selected(),data=Object.fromEntries(new FormData(event.currentTarget));data.id=shop.id;try{await api('shop',{method:'PATCH',body:JSON.stringify(data)});await load();toast('Shop details saved')}catch(error){showDialogError(error)}}
 async function addDomain(event){event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget));data.shop_id=state.selectedId;data.is_primary=event.currentTarget.elements.is_primary.checked;try{await api('domain',{method:'POST',body:JSON.stringify(data)});event.currentTarget.reset();await load();toast('Domain added')}catch(error){showDialogError(error)}}
 async function setPrimaryDomain(id){try{await api('domain',{method:'PATCH',body:JSON.stringify({id,shop_id:state.selectedId,is_primary:true})});await load();toast('Primary domain updated')}catch(error){showDialogError(error)}}
 async function deleteDomain(id){if(!confirm('Remove this domain mapping?'))return;try{await api('domain',{method:'DELETE',query:{id,shop_id:state.selectedId}});await load();toast('Domain removed')}catch(error){showDialogError(error)}}
-async function addAdmin(event){event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget));data.shop_id=state.selectedId;try{await api('admin',{method:'POST',body:JSON.stringify(data)});event.currentTarget.reset();await load();toast('Administrator added')}catch(error){showDialogError(error)}}
+async function addAdmin(event){
+  event.preventDefault();const form=event.currentTarget,button=$('addAdminSubmit');if(button.dataset.busy==='true')return;
+  const data=Object.fromEntries(new FormData(form));data.shop_id=state.selectedId;button.dataset.busy='true';button.disabled=true;button.textContent='Adding…';
+  try{await api('admin',{method:'POST',body:JSON.stringify(data)});form.reset();await load();toast('Administrator added')}
+  catch(error){if(/already exists/i.test(error.message))await load().catch(()=>{});showDialogError(error)}
+  finally{button.dataset.busy='false';button.disabled=false;button.textContent='Add admin'}
+}
 async function toggleAdmin(id,active){try{await api('admin',{method:'PATCH',body:JSON.stringify({id,shop_id:state.selectedId,active})});await load();toast(active?'Administrator enabled':'Administrator disabled')}catch(error){showDialogError(error)}}
 async function resetAdmin(id){const password=prompt('Enter a new temporary password (at least 8 characters):');if(password===null)return;if(password.length<8){showDialogError(new Error('Password must be at least 8 characters'));return}try{await api('admin',{method:'PATCH',body:JSON.stringify({id,shop_id:state.selectedId,password})});toast('Temporary password updated')}catch(error){showDialogError(error)}}
 async function saveMigration(event){event.preventDefault();const data=Object.fromEntries(new FormData(event.currentTarget));data.shop_id=state.selectedId;try{await api('migration',{method:'PATCH',body:JSON.stringify(data)});await load();toast('Transfer status updated')}catch(error){showDialogError(error)}}
 function showDialogError(error){$('shopDialogError').textContent=error.message;toast(error.message,true);setTimeout(()=>$('shopDialogError').textContent='',4000)}
+
+$('importFile').addEventListener('change',event=>chooseImportFile(event.target.files?.[0]));
+$('previewImportButton').addEventListener('click',previewImport);
+$('commitImportButton').addEventListener('click',commitImport);
+$('confirmImportCheck').addEventListener('change',event=>{$('commitImportButton').disabled=!event.target.checked||!state.importPreview||Number(state.importPreview.ready)<1});
+$('importDataType').addEventListener('change',()=>{state.importPreview=null;$('previewEmpty').classList.remove('hidden');$('previewResults').classList.add('hidden');$('confirmImportCheck').checked=false;$('commitImportButton').disabled=true});
+for(const eventName of ['dragenter','dragover'])$('fileDrop').addEventListener(event=>{event.preventDefault();$('fileDrop').classList.add('dragging')});
+for(const eventName of ['dragleave','drop'])$('fileDrop').addEventListener(event=>{event.preventDefault();$('fileDrop').classList.remove('dragging')});
+$('fileDrop').addEventListener('drop',event=>chooseImportFile(event.dataTransfer?.files?.[0]));
 
 $('loginForm').addEventListener('submit',login);$('logoutButton').addEventListener('click',logout);$('newShopButton').addEventListener('click',()=>{$('createShopError').textContent='';delete $('createShopForm').elements.slug.dataset.edited;$('createShopDialog').showModal()});$('createShopForm').addEventListener('submit',createShop);$('createShopForm').elements.name.addEventListener('input',event=>{const slug=$('createShopForm').elements.slug;if(!slug.dataset.edited)slug.value=slugify(event.target.value)});$('createShopForm').elements.slug.addEventListener('input',event=>event.target.dataset.edited='true');$('closeShopDialog').addEventListener('click',()=>$('shopDialog').close());$('shopDetailsForm').addEventListener('submit',saveShop);$('addDomainForm').addEventListener('submit',addDomain);$('addAdminForm').addEventListener('submit',addAdmin);$('migrationForm').addEventListener('submit',saveMigration);$('shopSearch').addEventListener('input',renderShops);$('statusFilter').addEventListener('change',renderShops);$('menuButton').addEventListener('click',()=>document.body.classList.toggle('menu-open'));$('menuScrim').addEventListener('click',()=>document.body.classList.remove('menu-open'));document.querySelectorAll('.sidebar nav a').forEach(link=>link.addEventListener('click',()=>document.body.classList.remove('menu-open')));
 load().catch(error=>{if(!/session|Unauthorized/i.test(error.message))$('loginError').textContent=error.message;showLogin()});

@@ -71,7 +71,7 @@ For a brand-new Supabase project run these files in order:
 
 `automatic_inspection_requests.sql` enables unassigned inspection requests, links them to appointments, and adds upcoming website appointments that do not already have a request.
 
-`platform_owner_portal.sql` adds per-shop admin accounts, transfer tracking, and the platform-owner audit log.
+`platform_owner_portal.sql` adds per-shop admin accounts, transfer tracking, import batches, exact-row rollback tracking, and the platform-owner audit log. It is safe to run again after a portal update because the schema uses `if not exists`.
 
 ## Vercel environment variables
 
@@ -106,6 +106,18 @@ Legacy fallbacks still supported:
 For new shops, store those settings on the `shops` row instead.
 
 `ADMIN_PASSWORD` remains available as a transition fallback. New shop administrators should be created in `/platform`; those accounts use a username and a hashed password stored in `shop_admin_accounts`.
+
+## Safe data transfers
+
+The platform owner workspace includes a preview-first migration center for CSV and JSON exports.
+
+1. Choose the shop and data type (`customers`, `appointments`, or `inspections`).
+2. Upload an export with no more than 2,000 rows.
+3. Review the ready, duplicate, and invalid counts. Previewing never writes data.
+4. Confirm the import only after the preview is correct.
+5. Verify the imported records in the shop admin before marking the transfer complete.
+
+Every confirmed import creates a `shop_import_batches` record and stores the exact inserted IDs in `shop_import_records`. Rollback removes only records created by that batch. A newly imported customer is retained if later appointments or inspections now depend on it.
 
 ## Shop-specific website config
 

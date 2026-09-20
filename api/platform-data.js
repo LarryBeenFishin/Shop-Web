@@ -65,13 +65,17 @@ module.exports=async function handler(req,res){
       const domainMap=new Map(),adminMap=new Map(),migrationMap=new Map((migrations||[]).map(item=>[item.shop_id,item]));
       for(const domain of domains||[]){if(!domainMap.has(domain.shop_id))domainMap.set(domain.shop_id,[]);domainMap.get(domain.shop_id).push(domain)}
       for(const admin of admins||[]){if(!adminMap.has(admin.shop_id))adminMap.set(admin.shop_id,[]);adminMap.get(admin.shop_id).push(safeAdmin(admin))}
+      let importBatches=[],importSetupRequired=false;
+      const {data:batchData,error:batchError}=await supabase.from('shop_import_batches').select('*').order('created_at',{ascending:false}).limit(200);
+      if(batchError){if(missingTable(batchError,'shop_import_batches'))importSetupRequired=true;else throw batchError}else importBatches=batchData||[];
+      const batchMap=new Map();for(const batch of importBatches){if(!batchMap.has(batch.shop_id))batchMap.set(batch.shop_id,[]);batchMap.get(batch.shop_id).push(batch)}
       const result=await Promise.all((shops||[]).map(async shop=>{
         const [appointments,customers,inspections,technicians,requests]=await Promise.all([
           countFor(supabase,'appointments',shop.id),countFor(supabase,'customers',shop.id),countFor(supabase,'inspections',shop.id),countFor(supabase,'technician_accounts',shop.id),countFor(supabase,'inspection_requests',shop.id)
         ]);
-        return {...shop,domains:domainMap.get(shop.id)||[],admins:adminMap.get(shop.id)||[],migration:migrationMap.get(shop.id)||null,counts:{appointments,customers,inspections,technicians,requests}};
+        return {...shop,domains:domainMap.get(shop.id)||[],admins:adminMap.get(shop.id)||[],migration:migrationMap.get(shop.id)||null,import_batches:batchMap.get(shop.id)||[],counts:{appointments,customers,inspections,technicians,requests}};
       }));
-      return json(res,200,{status:'success',shops:result,events:events||[]});
+      return json(res,200,{status:'success',shops:result,events:events||[],import_setup_required:importSetupRequired});
     }
 
     if(req.method==='POST'&&action==='shop'){

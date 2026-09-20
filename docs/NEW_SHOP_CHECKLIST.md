@@ -6,8 +6,6 @@ Use this every time a new repair shop is added to Shop-Web.
 
 Open `/platform`, select **Add shop**, and enter the shop details, first domain, and first administrator account. The portal creates the required tenant records without exposing the Supabase service key.
 
-The corresponding `public.shops` row contains:
-
 In `public.shops`, add a row with:
 
 - `slug` — lowercase, URL-safe, unique (example: `smith-auto`)
@@ -119,6 +117,20 @@ Once confirmed, set `TWILIO_VALIDATE_WEBHOOKS=true`.
 
 ### Push
 Use the shared VAPID keypair. Push subscriptions are stored with `shop_id`, so one shop cannot receive another shop's notifications.
+
+## 8. Transfer an existing shop
+
+Before importing anything, make a read-only export or backup of the old system. Then open the shop in `/platform` and use the **Safe migration center**:
+
+1. Export customers, appointments, and inspections as separate CSV or JSON files.
+2. Upload one file and choose the matching data type.
+3. Run **Preview import** and review invalid rows and duplicates.
+4. Confirm the import only when the preview is correct.
+5. Open the shop admin and verify customer totals, calendar dates/times, and inspection history.
+6. Import the next data type and repeat the verification.
+7. Mark the transfer **Completed** only after the old and new totals match.
+
+If a committed file was wrong, use **Roll back** on that batch. The rollback uses recorded database IDs and does not broadly delete records by name or date.
 
 ## Rule for future development
 

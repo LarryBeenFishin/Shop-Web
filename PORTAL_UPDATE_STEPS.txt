@@ -1,0 +1,20 @@
+SHOP-WEB PORTAL CLEANUP UPDATE
+
+1. Make sure GitHub Desktop is on the Shop-Web repository and the main branch.
+2. Extract this ZIP directly into the local Shop-Web folder.
+3. Allow Windows to replace the matching files and keep the folder structure.
+4. In GitHub Desktop, confirm the changed files are the platform, API, SQL, README, and checklist files from this package.
+5. Commit with this summary:
+   Clean platform portal and add safe data imports
+6. Click Push origin and wait for the shop-web-platform Vercel deployment to become Ready.
+7. In Supabase, open SQL Editor and run the full updated file:
+   supabase/platform_owner_portal.sql
+   It is safe to run again and creates the new import tracking tables.
+8. Open https://shop-web-platform.vercel.app/platform and refresh.
+
+IMPORTANT
+- This update does not transfer or delete any Toro's data by itself.
+- Previewing an export never writes data.
+- Confirm Import writes only rows marked Ready.
+- Roll Back removes only records created by the selected import batch.
+- Do not mark the transfer Completed until the old and new totals are verified.

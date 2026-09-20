@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#081221">
   <title>Platform Owner | Shop-Web</title>
   <link rel="icon" href="/assets/favicon.svg">
-  <link rel="stylesheet" href="/platform/platform.css?v=1">
+  <link rel="stylesheet" href="/platform/platform.css?v=2">
 </head>
 <body>
   <section class="login" id="loginView">
@@ -101,33 +101,56 @@
       <div class="modal-head"><div><div class="eyebrow">Shop workspace</div><h2 id="detailTitle">Shop</h2><p id="detailSubtitle"></p></div><button class="icon-button" id="closeShopDialog" aria-label="Close">×</button></div>
       <div class="detail-layout">
         <div class="detail-main">
-          <section class="form-section"><div class="section-heading"><h3>Business details</h3><span class="status-badge" id="detailStatus"></span></div><form id="shopDetailsForm"><div class="form-grid">
+          <section class="form-section"><div class="section-heading"><div><h3>Shop details</h3><p>Business identity, contact information, and account status.</p></div><span class="status-badge" id="detailStatus"></span></div><form id="shopDetailsForm"><div class="form-grid">
             <label>Business name<input name="name" required></label>
             <label>Shop slug<input name="slug" required></label>
             <label>Timezone<select name="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option></select></label>
             <label>Status<select name="status"><option value="active">Active</option><option value="paused">Paused</option><option value="archived">Archived</option></select></label>
             <label>Notification email<input name="notification_email" type="email"></label>
-            <label>Logo URL<input name="logo_url" type="url" placeholder="https://..."></label>
             <label>Contact name<input name="contact_name"></label>
             <label>Contact email<input name="contact_email" type="email"></label>
             <label>Contact phone<input name="contact_phone" type="tel"></label>
-          </div><div class="inline-actions"><button class="primary" type="submit">Save details</button><a class="secondary button-link" id="openAdminLink" target="_blank" rel="noopener">Open shop admin ↗</a></div></form></section>
+          </div><div class="inline-actions"><button class="primary" type="submit">Save details</button></div></form></section>
 
-          <section class="form-section"><div class="section-heading"><div><h3>Domains</h3><p>A mapped domain tells the platform which shop to load.</p></div></div><div id="domainList" class="managed-list"></div><form id="addDomainForm" class="inline-form"><input name="hostname" placeholder="shopdomain.com" required><label class="check"><input type="checkbox" name="is_primary"> Primary</label><button class="secondary" type="submit">Add domain</button></form></section>
+          <section class="form-section"><div class="section-heading"><div><h3>Website and domains</h3><p>A mapped domain tells the platform which shop website to load.</p></div></div><div class="website-actions"><a class="primary button-link" id="openWebsiteLink" target="_blank" rel="noopener">Open website ↗</a><a class="secondary button-link" id="openAdminLink" target="_blank" rel="noopener">Open shop admin ↗</a></div><label>Logo URL<input id="detailLogoUrl" form="shopDetailsForm" name="logo_url" type="url" placeholder="https://..."></label><div id="domainList" class="managed-list"></div><form id="addDomainForm" class="inline-form"><input name="hostname" placeholder="shopdomain.com" required><label class="check"><input type="checkbox" name="is_primary"> Primary</label><button class="secondary" type="submit">Add domain</button></form></section>
 
-          <section class="form-section"><div class="section-heading"><div><h3>Shop administrators</h3><p>Admins can access this shop only.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" required><input name="username" placeholder="Username" required><input name="password" type="password" minlength="8" placeholder="Temporary password" required><button class="secondary" type="submit">Add admin</button></form></section>
+          <section class="form-section"><div class="section-heading"><div><h3>Shop administrators</h3><p>Each administrator is limited to this shop. Passwords can be reset without creating a duplicate account.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" autocomplete="name" required><input name="username" placeholder="Username" autocomplete="off" required><input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Temporary password" required><button class="secondary" id="addAdminSubmit" type="submit">Add admin</button></form><p class="form-help">Click once and wait for confirmation. The button locks while the account is being created.</p></section>
         </div>
 
         <aside class="detail-side">
           <section class="side-card"><h3>Shop activity</h3><div class="mini-metrics" id="detailMetrics"></div></section>
-          <section class="side-card"><h3>Data transfer</h3><form id="migrationForm"><label>Status<select name="status"><option value="not_started">Not started</option><option value="ready">Files ready</option><option value="in_progress">In progress</option><option value="review">Ready for review</option><option value="completed">Completed</option></select></label><label>Source<input name="source" placeholder="Google Sheets"></label><label>Notes<textarea name="notes" rows="4" placeholder="Files received, checks remaining..."></textarea></label><button class="secondary full" type="submit">Update transfer</button></form></section>
+          <section class="side-card transfer-summary"><div class="section-heading"><h3>Transfer status</h3><span class="transfer-badge" id="transferBadge">Not started</span></div><div class="transfer-steps" id="transferSteps"></div><form id="migrationForm"><label>Status<select name="status"><option value="not_started">Not started</option><option value="ready">Files ready</option><option value="in_progress">In progress</option><option value="review">Ready for review</option><option value="completed">Completed</option></select></label><label>Source<input name="source" placeholder="Google Sheets"></label><label>Notes<textarea name="notes" rows="4" placeholder="Files received, checks remaining..."></textarea></label><button class="secondary full" type="submit">Save transfer notes</button></form></section>
         </aside>
       </div>
+
+      <section class="migration-center">
+        <div class="section-heading migration-heading"><div><div class="eyebrow">Safe migration center</div><h3>Preview the old data before anything is written</h3><p>Upload one export at a time. The portal checks required fields and duplicates, then waits for your confirmation.</p></div><span class="setup-pill hidden" id="importSetupWarning">Database setup required</span></div>
+        <div class="migration-grid">
+          <div class="import-card">
+            <div class="import-step"><span>1</span><div><strong>Select an export</strong><small>CSV or JSON · up to 2,000 rows</small></div></div>
+            <label>Data type<select id="importDataType"><option value="customers">Customers</option><option value="appointments">Appointments</option><option value="inspections">Inspections</option></select></label>
+            <label class="file-drop" id="fileDrop"><input id="importFile" type="file" accept=".csv,.json,text/csv,application/json"><span class="file-drop-title">Choose a CSV or JSON file</span><small id="fileName">No file selected</small></label>
+            <button class="secondary full" id="previewImportButton" type="button" disabled>Preview import</button>
+          </div>
+          <div class="import-card preview-card">
+            <div class="import-step"><span>2</span><div><strong>Review the checks</strong><small>Nothing is imported during preview</small></div></div>
+            <div class="preview-empty" id="previewEmpty">Select a file and run preview to see what will happen.</div>
+            <div class="hidden" id="previewResults">
+              <div class="preview-metrics"><div><strong id="previewReady">0</strong><span>Ready</span></div><div><strong id="previewDuplicates">0</strong><span>Duplicates</span></div><div><strong id="previewInvalid">0</strong><span>Needs fixing</span></div></div>
+              <div class="preview-table-wrap"><table class="preview-table"><thead><tr><th>Row</th><th>Record</th><th>Result</th></tr></thead><tbody id="previewRows"></tbody></table></div>
+              <label class="confirm-check"><input id="confirmImportCheck" type="checkbox"> I reviewed this preview and want to import only the ready rows.</label>
+              <button class="primary full" id="commitImportButton" type="button" disabled>Confirm import</button>
+            </div>
+          </div>
+        </div>
+        <div class="import-history-head"><div><h3>Import history</h3><p>Each batch records the exact rows it created. Completed batches can be rolled back safely.</p></div></div>
+        <div class="import-history" id="importHistory"></div>
+      </section>
       <div class="dialog-error" id="shopDialogError" role="alert"></div>
     </div>
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="/platform/platform.js?v=1" defer></script>
+  <script src="/platform/platform.js?v=2" defer></script>
 </body>
 </html>
