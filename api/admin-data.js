@@ -1,4 +1,4 @@
-const { verifyForShop } = require('./_auth');
+const { verifyForShop, hashPassword } = require('./_auth');
 const { db, upsertCustomer, upsertCustomerVehicle, normalizePhone, auditEvent, missingTable } = require('./_db');
 const { resolveShop, applyShopScope, withShopId, clearShopCache } = require('./_tenant');
 const { loadAvailability, saveAvailability } = require('./_availability');
@@ -9,6 +9,8 @@ function s(v,n=3000){return String(v??'').trim().slice(0,n)}
 function bool(v){return v===true||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='yes'}
 function arr(v){return Array.isArray(v)?v:[]}
 function uniqueTextList(value,maxItems=50,maxLength=120){const out=[],seen=new Set();for(const item of arr(value)){const text=s(item,maxLength),key=text.toLowerCase();if(!text||seen.has(key))continue;seen.add(key);out.push(text);if(out.length>=maxItems)break}return out}
+function safeTechnician(row){return row?{id:row.id,name:row.name,username:row.username,active:row.active!==false}:null}
+function validUsername(value){return /^[a-z0-9._-]{3,40}$/.test(value)}
 function timeKey(v){
   const m=s(v,30).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if(!m) return s(v,30);
   let h=Number(m[1]); if(m[3].toUpperCase()==='PM'&&h!==12)h+=12; if(m[3].toUpperCase()==='AM'&&h===12)h=0;
@@ -28,22 +30,103 @@ module.exports=async function handler(req,res){
       const {data,error}=await supabase.from('shops').select('name,public_config').eq('id',shop.id).maybeSingle();
       if(error)throw error;
       const config=data?.public_config||shop.public_config||{};
-      return json(res,200,{status:'success',shop:{name:data?.name||shop.name,technicians:uniqueTextList(config?.staff?.technicians)}});
+      let technicians=[];
+      const {data:accounts,error:accountError}=await supabase.from('technician_accounts').select('id,name,username,active').eq('shop_id',shop.id).order('name');
+      if(accountError){
+        if(!missingTable(accountError,'technician_accounts'))throw accountError;
+        technicians=uniqueTextList(config?.staff?.technicians).map(name=>({id:null,name,username:'',active:true,legacy:true}));
+      }else technicians=(accounts||[]).map(safeTechnician);
+      return json(res,200,{status:'success',shop:{name:data?.name||shop.name,technicians}});
     }
 
     if(req.method==='PUT' && action==='shop-settings'){
       if(!shop.id)return json(res,400,{error:'Multi-shop setup is required before shop settings can be saved'});
-      const name=s(req.body?.name,120),technicians=uniqueTextList(req.body?.technicians);
+      const name=s(req.body?.name,120);
       if(!name)return json(res,400,{error:'Business name is required'});
-      const {data:current,error:loadError}=await supabase.from('shops').select('public_config').eq('id',shop.id).maybeSingle();
-      if(loadError)throw loadError;
-      const config=current?.public_config||shop.public_config||{};
-      const publicConfig={...config,staff:{...(config.staff||{}),technicians}};
-      const {data,error}=await supabase.from('shops').update({name,public_config:publicConfig,updated_at:new Date().toISOString()}).eq('id',shop.id).select('name').single();
+      const {data,error}=await supabase.from('shops').update({name,updated_at:new Date().toISOString()}).eq('id',shop.id).select('name').single();
       if(error)throw error;
       clearShopCache(shop);
-      await auditEvent(supabase,shop.id,'shop.settings.updated','shop',shop.id,{name,technician_count:technicians.length});
-      return json(res,200,{status:'success',shop:{name:data.name,technicians}});
+      await auditEvent(supabase,shop.id,'shop.settings.updated','shop',shop.id,{name});
+      return json(res,200,{status:'success',shop:{name:data.name}});
+    }
+
+    if(req.method==='POST' && action==='technician'){
+      if(!shop.id)return json(res,400,{error:'Multi-shop setup is required before technician accounts can be created'});
+      const name=s(req.body?.name,120),username=s(req.body?.username,40).toLowerCase(),password=String(req.body?.password||'');
+      if(!name)return json(res,400,{error:'Technician name is required'});
+      if(!validUsername(username))return json(res,400,{error:'Username must be 3–40 characters using letters, numbers, periods, dashes, or underscores'});
+      if(password.length<8)return json(res,400,{error:'Temporary password must be at least 8 characters'});
+      const row={shop_id:shop.id,name,username,password_hash:hashPassword(password),active:true,updated_at:new Date().toISOString()};
+      const {data,error}=await supabase.from('technician_accounts').insert(row).select('id,name,username,active').single();
+      if(error){if(error.code==='23505')return json(res,409,{error:'That username is already in use'});throw error;}
+      await auditEvent(supabase,shop.id,'technician.created','technician',data.id,{name:data.name,username:data.username});
+      return json(res,201,{status:'success',technician:safeTechnician(data)});
+    }
+
+    if(req.method==='PATCH' && action==='technician'){
+      const id=s(req.body?.id,80);if(!id)return json(res,400,{error:'Missing technician id'});
+      const patch={updated_at:new Date().toISOString()};
+      if(req.body?.name!==undefined){patch.name=s(req.body.name,120);if(!patch.name)return json(res,400,{error:'Technician name is required'});}
+      if(req.body?.username!==undefined){patch.username=s(req.body.username,40).toLowerCase();if(!validUsername(patch.username))return json(res,400,{error:'Username must be 3–40 characters using letters, numbers, periods, dashes, or underscores'});}
+      if(req.body?.active!==undefined)patch.active=bool(req.body.active);
+      if(req.body?.password!==undefined){const password=String(req.body.password||'');if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});patch.password_hash=hashPassword(password);}
+      let update=supabase.from('technician_accounts').update(patch).eq('id',id).eq('shop_id',shop.id);
+      const {data,error}=await update.select('id,name,username,active').maybeSingle();
+      if(error){if(error.code==='23505')return json(res,409,{error:'That username is already in use'});throw error;}
+      if(!data)return json(res,404,{error:'Technician account not found'});
+      await auditEvent(supabase,shop.id,'technician.updated','technician',data.id,{fields:Object.keys(patch)});
+      return json(res,200,{status:'success',technician:safeTechnician(data)});
+    }
+
+    if(req.method==='DELETE' && action==='technician'){
+      const id=s(req.query.id||req.body?.id,80);if(!id)return json(res,400,{error:'Missing technician id'});
+      const {data,error}=await supabase.from('technician_accounts').update({active:false,updated_at:new Date().toISOString()}).eq('id',id).eq('shop_id',shop.id).select('id,name,username,active').maybeSingle();
+      if(error)throw error;if(!data)return json(res,404,{error:'Technician account not found'});
+      await auditEvent(supabase,shop.id,'technician.deactivated','technician',data.id,{name:data.name});
+      return json(res,200,{status:'success',technician:safeTechnician(data)});
+    }
+
+    if(req.method==='GET' && action==='inspection-requests'){
+      let q=supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).order('created_at',{ascending:false}).limit(500);
+      if(req.query.status)q=q.eq('status',s(req.query.status,30));
+      const [{data:requests,error},{data:technicians,error:techError}]=await Promise.all([q,supabase.from('technician_accounts').select('id,name,username,active').eq('shop_id',shop.id)]);
+      if(error)throw error;if(techError)throw techError;
+      const names=new Map((technicians||[]).map(item=>[item.id,item.name]));
+      return json(res,200,{status:'success',requests:(requests||[]).map(item=>({...item,technician_name:names.get(item.technician_id)||'Unassigned'}))});
+    }
+
+    if(req.method==='POST' && action==='inspection-request'){
+      const technicianId=s(req.body?.technician_id,80),customerId=s(req.body?.customer_id,80),vehicleId=s(req.body?.vehicle_id,80);
+      if(!technicianId||!customerId||!vehicleId)return json(res,400,{error:'Customer, vehicle, and technician are required'});
+      const [{data:technician,error:techError},{data:customer,error:customerError},{data:vehicle,error:vehicleError}]=await Promise.all([
+        supabase.from('technician_accounts').select('id,name').eq('id',technicianId).eq('shop_id',shop.id).eq('active',true).maybeSingle(),
+        supabase.from('customers').select('id,name,phone,email').eq('id',customerId).eq('shop_id',shop.id).maybeSingle(),
+        supabase.from('customer_vehicles').select('*').eq('id',vehicleId).eq('customer_id',customerId).eq('shop_id',shop.id).maybeSingle()
+      ]);
+      if(techError)throw techError;if(customerError)throw customerError;if(vehicleError)throw vehicleError;
+      if(!technician)return json(res,400,{error:'Choose an active technician account'});
+      if(!customer)return json(res,404,{error:'Customer not found'});
+      if(!vehicle)return json(res,404,{error:'Vehicle not found'});
+      const vehicleText=[vehicle.year,vehicle.make,vehicle.model].filter(Boolean).join(' ')||s(vehicle.nickname,300)||'Vehicle';
+      const dueDate=s(req.body?.due_date,10)||null;
+      if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))return json(res,400,{error:'Invalid due date'});
+      const row={shop_id:shop.id,technician_id:technician.id,customer_id:customer.id,vehicle_id:vehicle.id,customer_name:customer.name,phone:customer.phone||null,email:customer.email||null,vehicle:vehicleText,mileage:vehicle.mileage||null,due_date:dueDate,request_notes:s(req.body?.request_notes||req.body?.notes,3000)||null,status:'requested',updated_at:new Date().toISOString()};
+      const {data,error}=await supabase.from('inspection_requests').insert(row).select('*').single();if(error)throw error;
+      await auditEvent(supabase,shop.id,'inspection.requested','inspection_request',data.id,{technician_id:technician.id,customer:customer.name,vehicle:vehicleText,due_date:dueDate});
+      return json(res,201,{status:'success',request:{...data,technician_name:technician.name}});
+    }
+
+    if(req.method==='PATCH' && action==='inspection-request'){
+      const id=s(req.body?.id,80);if(!id)return json(res,400,{error:'Missing inspection request id'});
+      const {data:existing,error:loadError}=await supabase.from('inspection_requests').select('*').eq('id',id).eq('shop_id',shop.id).maybeSingle();
+      if(loadError)throw loadError;if(!existing)return json(res,404,{error:'Inspection request not found'});
+      if(existing.status==='completed')return json(res,409,{error:'A completed inspection request cannot be changed'});
+      const patch={updated_at:new Date().toISOString()};
+      if(req.body?.status!==undefined){const status=s(req.body.status,30);if(!['requested','in_progress','cancelled'].includes(status))return json(res,400,{error:'Invalid request status'});patch.status=status;}
+      if(req.body?.technician_id!==undefined){const technicianId=s(req.body.technician_id,80);const {data:technician,error}=await supabase.from('technician_accounts').select('id').eq('id',technicianId).eq('shop_id',shop.id).eq('active',true).maybeSingle();if(error)throw error;if(!technician)return json(res,400,{error:'Choose an active technician account'});patch.technician_id=technician.id;}
+      const {data,error}=await supabase.from('inspection_requests').update(patch).eq('id',id).eq('shop_id',shop.id).select('*').single();if(error)throw error;
+      await auditEvent(supabase,shop.id,'inspection.request.updated','inspection_request',data.id,{fields:Object.keys(patch),status:data.status});
+      return json(res,200,{status:'success',request:data});
     }
 
     if(req.method==='GET' && action==='availability'){

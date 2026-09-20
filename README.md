@@ -53,6 +53,9 @@ For a brand-new Supabase project run these files in order:
 1. `supabase/schema.sql`
 2. `supabase/admin_features.sql`
 3. `supabase/multi_tenant_v2.sql`
+4. `supabase/customer_vehicles.sql`
+5. `supabase/dynamic_inspections.sql`
+6. `supabase/technician_portal.sql`
 
 `multi_tenant_v2.sql` creates the `shops` tenant table, attaches `shop_id` to all operational tables, migrates existing data into the first shop, creates tenant-aware indexes, and adds the audit log.
 

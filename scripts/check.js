@@ -5,7 +5,7 @@ const vm = require('vm');
 const ROOT = process.cwd();
 const JS_DIRS = ['api', 'scripts', 'admin', 'assets'];
 const ROOT_JS = ['config.js', 'sw.js'];
-const HTML_DIRS = ['admin', 'inspection'];
+const HTML_DIRS = ['admin', 'inspection', 'tech'];
 
 function walk(dir,ext){
   const full=path.join(ROOT,dir);
