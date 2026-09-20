@@ -44,6 +44,17 @@
           </div>
         </div>
 
+        <section class="appt-inspection-panel">
+          <div class="appt-inspection-copy">
+            <div class="appt-section-title">Vehicle Inspection</div>
+            <div class="appt-section-help">Create the report yourself or assign it to a technician.</div>
+          </div>
+          <div class="appt-inspection-actions">
+            <button class="appt-create-inspection-btn" type="button" onclick="createInspectionFromAppointment()"><span>✓</span>Create Inspection</button>
+            <button class="appt-request-inspection-btn" type="button" onclick="requestInspectionFromAppointment()"><span>→</span>Assign to Technician</button>
+          </div>
+        </section>
+
         <section class="appt-section appt-reschedule-section">
           <div class="appt-section-heading">
             <div>
@@ -74,11 +85,6 @@
           <div class="appt-section-help">Only the shop can see these notes.</div>
         </section>
 
-        <div class="appt-inspection-actions">
-          <button class="appt-create-inspection-btn" type="button" onclick="createInspectionFromAppointment()">Create Inspection</button>
-          <button class="appt-request-inspection-btn" type="button" onclick="requestInspectionFromAppointment()">Request Inspection</button>
-        </div>
-
         <div class="appt-modal-actions">
           <button class="appt-text-btn" onclick="textAppointment()">Text Customer</button>
           <button class="appt-save-btn" onclick="saveAppointment()">Save Changes</button>
@@ -103,8 +109,7 @@
         make:a.make,
         model:a.model,
         service:a.service,
-        message:a.message,
-        due:a.appointment_date
+        message:a.message
       };
       Object.entries(values).forEach(([key,value])=>{if(value!==undefined&&value!==null&&String(value).trim())params.set(key,String(value).trim())});
       return params;

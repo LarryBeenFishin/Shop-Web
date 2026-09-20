@@ -25,7 +25,6 @@ create table if not exists public.inspection_requests (
   shop_id uuid not null references public.shops(id) on delete cascade,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  due_date date,
   status text not null default 'requested'
     check (status in ('requested','in_progress','completed','cancelled')),
   technician_id uuid not null references public.technician_accounts(id) on delete restrict,
@@ -61,4 +60,3 @@ create unique index if not exists inspections_request_unique
   where inspection_request_id is not null;
 
 commit;
-

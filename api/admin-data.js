@@ -112,11 +112,9 @@ module.exports=async function handler(req,res){
       if(!customer)return json(res,404,{error:'Customer not found'});
       if(!vehicle)return json(res,404,{error:'Vehicle not found'});
       const vehicleText=[vehicle.year,vehicle.make,vehicle.model].filter(Boolean).join(' ')||s(vehicle.nickname,300)||'Vehicle';
-      const dueDate=s(req.body?.due_date,10)||null;
-      if(dueDate&&!/^\d{4}-\d{2}-\d{2}$/.test(dueDate))return json(res,400,{error:'Invalid due date'});
-      const row={shop_id:shop.id,technician_id:technician.id,customer_id:customer.id,vehicle_id:vehicle.id,customer_name:customer.name,phone:customer.phone||null,email:customer.email||null,vehicle:vehicleText,mileage:vehicle.mileage||null,due_date:dueDate,request_notes:s(req.body?.request_notes||req.body?.notes,3000)||null,status:'requested',updated_at:new Date().toISOString()};
+      const row={shop_id:shop.id,technician_id:technician.id,customer_id:customer.id,vehicle_id:vehicle.id,customer_name:customer.name,phone:customer.phone||null,email:customer.email||null,vehicle:vehicleText,mileage:vehicle.mileage||null,request_notes:s(req.body?.request_notes||req.body?.notes,3000)||null,status:'requested',updated_at:new Date().toISOString()};
       const {data,error}=await supabase.from('inspection_requests').insert(row).select('*').single();if(error)throw error;
-      await auditEvent(supabase,shop.id,'inspection.requested','inspection_request',data.id,{technician_id:technician.id,customer:customer.name,vehicle:vehicleText,due_date:dueDate});
+      await auditEvent(supabase,shop.id,'inspection.requested','inspection_request',data.id,{technician_id:technician.id,customer:customer.name,vehicle:vehicleText});
       return json(res,201,{status:'success',request:{...data,technician_name:technician.name}});
     }
 
