@@ -4,6 +4,7 @@ const { resolveShop, applyShopScope, withShopId, clearShopCache } = require('./_
 const { loadAvailability, saveAvailability } = require('./_availability');
 
 const APPT_STATUSES=['pending','new','confirmed','checked-in','in-progress','waiting-approval','completed','cancelled'];
+const INSPECTION_STATUSES=new Set(['Good','Monitor','Needs Attention']);
 function json(res,code,data){return res.status(code).json(data)}
 function s(v,n=3000){return String(v??'').trim().slice(0,n)}
 function bool(v){return v===true||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='yes'}
@@ -11,6 +12,9 @@ function arr(v){return Array.isArray(v)?v:[]}
 function uniqueTextList(value,maxItems=50,maxLength=120){const out=[],seen=new Set();for(const item of arr(value)){const text=s(item,maxLength),key=text.toLowerCase();if(!text||seen.has(key))continue;seen.add(key);out.push(text);if(out.length>=maxItems)break}return out}
 function safeTechnician(row){return row?{id:row.id,name:row.name,username:row.username,active:row.active!==false}:null}
 function validUsername(value){return /^[a-z0-9._-]{3,40}$/.test(value)}
+function inspectionItems(value){return arr(value).slice(0,100).map((x,i)=>({id:s(x?.id||`item-${i+1}`,100),title:s(x?.title,160),status:INSPECTION_STATUSES.has(x?.status)?x.status:'Monitor',notes:s(x?.notes,3000)})).filter(x=>x.title)}
+function addInspectionLegacy(row,items){for(const key of ['brakes','tires','suspension','fluids','battery','lights','wipers','filters','leaks']){const match=items.find(item=>item.title.toLowerCase()===key);row[`${key}_status`]=match?.status||null;row[`${key}_notes`]=match?.notes||null}return row}
+async function technicianIdForName(supabase,shopId,name){if(!shopId||!name)return null;const {data,error}=await supabase.from('technician_accounts').select('id').eq('shop_id',shopId).eq('active',true).eq('name',name).limit(1);if(error){if(missingTable(error,'technician_accounts'))return null;throw error}return data?.[0]?.id||null}
 function timeKey(v){
   const m=s(v,30).match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i); if(!m) return s(v,30);
   let h=Number(m[1]); if(m[3].toUpperCase()==='PM'&&h!==12)h+=12; if(m[3].toUpperCase()==='AM'&&h===12)h=0;
@@ -282,18 +286,28 @@ module.exports=async function handler(req,res){
       if(!name||!phone||!vehicleText)return json(res,400,{error:'Customer name, phone and vehicle are required'});
       const customer=await upsertCustomer(supabase,{name,phone,email:b.email,vehicle:vehicleText,mileage:b.mileage},shop.id).catch(()=>null);
       const vehicle=customer?.id&&year&&make&&model?await upsertCustomerVehicle(supabase,{year,make,model,mileage:b.mileage,vehicle_id:b.vehicle_id},shop.id,customer.id).catch(()=>null):null;
-      const row=withShopId({
+      const items=inspectionItems(b.inspection_items||b.inspectionItems),technicianName=s(b.technician,120),technicianId=await technicianIdForName(supabase,shop.id,technicianName);
+      if(!items.length)return json(res,400,{error:'Add at least one inspection block'});
+      const row=addInspectionLegacy(withShopId({
         customer_id:customer?.id||null,vehicle_id:vehicle?.id||s(b.vehicle_id,80)||null,customer_name:name,phone,email:s(b.email,200)||null,vehicle:vehicleText,
-        mileage:s(b.mileage,50)||null,technician:s(b.technician,120)||null,overall_status:s(b.overall_status||b.overallStatus,50)||'Monitor',recommendations:s(b.recommendations,5000)||null,
-        inspection_items:arr(b.inspection_items||b.inspectionItems).slice(0,100).map((x,i)=>({id:s(x?.id||`item-${i+1}`,100),title:s(x?.title,160),status:s(x?.status,50)||'Monitor',notes:s(x?.notes,3000)})).filter(x=>x.title)
-      },shop);
-      for(const key of ['brakes','tires','suspension','fluids','battery','lights','wipers','filters','leaks']){
-        if(b[`${key}_status`]!==undefined||b[`${key}Status`]!==undefined)row[`${key}_status`]=s(b[`${key}_status`]??b[`${key}Status`],50)||null;
-        if(b[`${key}_notes`]!==undefined||b[`${key}Notes`]!==undefined)row[`${key}_notes`]=s(b[`${key}_notes`]??b[`${key}Notes`],2000)||null;
-      }
+        mileage:s(b.mileage,50)||null,technician:technicianName||null,technician_id:technicianId,overall_status:INSPECTION_STATUSES.has(b.overall_status||b.overallStatus)?(b.overall_status||b.overallStatus):'Monitor',recommendations:s(b.recommendations,5000)||null,inspection_items:items
+      },shop),items);
       const {data,error}=await supabase.from('inspections').insert(row).select('*').single();if(error)throw error;
       await auditEvent(supabase,shop.id,'inspection.created','inspection',data.id,{customer:data.customer_name,vehicle:data.vehicle,status:data.overall_status});
       return json(res,201,{status:'success',inspection:data,inspectionId:data.id});
+    }
+
+    if(req.method==='PATCH' && action==='inspection'){
+      const b=req.body||{},id=s(b.id,80),name=s(b.customer_name||b.customerName,120),phone=s(b.phone,40),year=s(b.year,10),make=s(b.make,80),model=s(b.model,100),vehicleText=s(b.vehicle,300)||[year,make,model].filter(Boolean).join(' '),items=inspectionItems(b.inspection_items||b.inspectionItems);
+      if(!id)return json(res,400,{error:'Missing inspection id'});if(!name||!phone||!vehicleText)return json(res,400,{error:'Customer name, phone and vehicle are required'});if(!items.length)return json(res,400,{error:'Add at least one inspection block'});
+      const customer=await upsertCustomer(supabase,{name,phone,email:b.email,vehicle:vehicleText,mileage:b.mileage},shop.id).catch(()=>null);
+      const vehicle=customer?.id&&year&&make&&model?await upsertCustomerVehicle(supabase,{year,make,model,mileage:b.mileage,vehicle_id:b.vehicle_id},shop.id,customer.id).catch(()=>null):null;
+      const technicianName=s(b.technician,120),technicianId=await technicianIdForName(supabase,shop.id,technicianName);
+      const patch=addInspectionLegacy({customer_id:customer?.id||null,vehicle_id:vehicle?.id||s(b.vehicle_id,80)||null,customer_name:name,phone,email:s(b.email,200)||null,vehicle:vehicleText,mileage:s(b.mileage,50)||null,technician:technicianName||null,technician_id:technicianId,overall_status:INSPECTION_STATUSES.has(b.overall_status||b.overallStatus)?(b.overall_status||b.overallStatus):'Monitor',recommendations:s(b.recommendations,5000)||null,inspection_items:items},items);
+      let update=supabase.from('inspections').update(patch).eq('id',id);update=applyShopScope(update,shop);
+      const {data,error}=await update.select('*').maybeSingle();if(error)throw error;if(!data)return json(res,404,{error:'Inspection not found'});
+      await auditEvent(supabase,shop.id,'inspection.updated','inspection',data.id,{customer:data.customer_name,vehicle:data.vehicle,status:data.overall_status,block_count:items.length});
+      return json(res,200,{status:'success',inspection:data,inspectionId:data.id});
     }
 
     return json(res,400,{error:'Unsupported action'});

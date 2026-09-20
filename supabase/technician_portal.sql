@@ -61,3 +61,4 @@ create unique index if not exists inspections_request_unique
   where inspection_request_id is not null;
 
 commit;
+
