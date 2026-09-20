@@ -27,7 +27,8 @@ create table if not exists public.inspection_requests (
   updated_at timestamptz not null default now(),
   status text not null default 'requested'
     check (status in ('requested','in_progress','completed','cancelled')),
-  technician_id uuid not null references public.technician_accounts(id) on delete restrict,
+  technician_id uuid references public.technician_accounts(id) on delete restrict,
+  appointment_id uuid references public.appointments(id) on delete cascade,
   customer_id uuid references public.customers(id) on delete set null,
   vehicle_id uuid references public.customer_vehicles(id) on delete set null,
   customer_name text not null,
@@ -47,6 +48,9 @@ create index if not exists inspection_requests_technician_status_idx
   on public.inspection_requests (technician_id, status, created_at desc);
 create index if not exists inspection_requests_customer_vehicle_idx
   on public.inspection_requests (shop_id, customer_id, vehicle_id, created_at desc);
+create unique index if not exists inspection_requests_appointment_unique
+  on public.inspection_requests (appointment_id)
+  where appointment_id is not null;
 alter table public.inspection_requests enable row level security;
 
 alter table public.inspections

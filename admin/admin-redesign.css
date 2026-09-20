@@ -147,6 +147,7 @@
 .appt-inspection-panel{display:grid;grid-template-columns:minmax(150px,.65fr) minmax(300px,1.35fr);align-items:center;gap:14px;margin:0 0 18px;padding:14px;border:1px solid #dce6f3;border-radius:14px;background:linear-gradient(135deg,#f8fbff,#f3f7fd)}
 .appt-inspection-copy .appt-section-title{margin-bottom:3px}.appt-inspection-copy .appt-section-help{margin-top:0}
 .appt-inspection-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.appt-inspection-actions.single{grid-template-columns:1fr}
 .appt-inspection-actions button{min-height:46px;border-radius:11px;padding:11px 13px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:7px}
 .appt-inspection-actions button span{font-size:16px;line-height:1}
 .appt-create-inspection-btn{background:var(--navy)!important}.appt-create-inspection-btn:hover{background:var(--navy-dark)!important}

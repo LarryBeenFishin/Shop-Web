@@ -20,7 +20,7 @@ module.exports=async function handler(req,res){
     const action=clean(req.query.action||req.body?.action,80);
 
     if(req.method==='GET'&&(action==='session'||action==='requests')){
-      let query=supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).eq('technician_id',technician.id).order('created_at',{ascending:false}).limit(200);
+      let query=supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).or(`technician_id.is.null,technician_id.eq.${technician.id}`).order('created_at',{ascending:false}).limit(200);
       if(action==='requests')query=req.query.status?query.eq('status',clean(req.query.status,30)):query.in('status',['requested','in_progress']);
       const {data,error}=await query;if(error)throw error;
       return json(res,200,{status:'success',shop:{name:shop.name},technician,requests:data||[]});
@@ -44,11 +44,12 @@ module.exports=async function handler(req,res){
 
     if(req.method==='POST'&&action==='start'){
       const id=clean(req.body?.id,80);if(!id)return json(res,400,{error:'Missing request id'});
-      const {data,error}=await supabase.from('inspection_requests').update({status:'in_progress',started_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('shop_id',shop.id).eq('technician_id',technician.id).eq('status','requested').select('*').maybeSingle();
+      const {data,error}=await supabase.from('inspection_requests').update({technician_id:technician.id,status:'in_progress',started_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('shop_id',shop.id).or(`technician_id.is.null,technician_id.eq.${technician.id}`).eq('status','requested').select('*').maybeSingle();
       if(error)throw error;
       if(data)return json(res,200,{status:'success',request:data});
-      const {data:existing,error:existingError}=await supabase.from('inspection_requests').select('*').eq('id',id).eq('shop_id',shop.id).eq('technician_id',technician.id).maybeSingle();if(existingError)throw existingError;
+      const {data:existing,error:existingError}=await supabase.from('inspection_requests').select('*').eq('id',id).eq('shop_id',shop.id).maybeSingle();if(existingError)throw existingError;
       if(!existing)return json(res,404,{error:'Inspection request not found'});
+      if(existing.technician_id&&existing.technician_id!==technician.id)return json(res,409,{error:'Another technician has already claimed this inspection'});
       if(existing.status==='cancelled')return json(res,409,{error:'This inspection request was cancelled'});
       if(existing.status==='completed')return json(res,409,{error:'This inspection request is already completed'});
       return json(res,200,{status:'success',request:existing});

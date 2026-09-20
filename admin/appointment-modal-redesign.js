@@ -15,6 +15,7 @@
       const phone=a.phone||'Not provided';
       const customerMessage=a.message&&String(a.message).trim()?a.message:'No customer message provided.';
       const dateLabel=a.preferred_date_label||a.appointment_date||'';
+      const onlineAppointment=a.submitted_from!=='Admin Dashboard';
 
       $('apptModalBody').innerHTML=`
         <div class="appt-detail-header">
@@ -47,11 +48,11 @@
         <section class="appt-inspection-panel">
           <div class="appt-inspection-copy">
             <div class="appt-section-title">Vehicle Inspection</div>
-            <div class="appt-section-help">Create the report yourself or assign it to a technician.</div>
+            <div class="appt-section-help">${onlineAppointment?'The inspection request was created automatically.':'Create an inspection report for this appointment.'}</div>
           </div>
-          <div class="appt-inspection-actions">
+          <div class="appt-inspection-actions ${onlineAppointment?'':'single'}">
             <button class="appt-create-inspection-btn" type="button" onclick="createInspectionFromAppointment()"><span>✓</span>Create Inspection</button>
-            <button class="appt-request-inspection-btn" type="button" onclick="requestInspectionFromAppointment()"><span>→</span>Assign to Technician</button>
+            ${onlineAppointment?'<button class="appt-request-inspection-btn" type="button" onclick="manageInspectionAssignment()"><span>→</span>Manage Technician</button>':''}
           </div>
         </section>
 
@@ -120,10 +121,9 @@
       location.href='/admin/inspection?'+appointmentParams(activeAppt).toString();
     };
 
-    window.requestInspectionFromAppointment=function(){
+    window.manageInspectionAssignment=function(){
       if(!activeAppt)return;
       const params=appointmentParams(activeAppt);
-      params.set('new','1');
       location.href='/admin/inspection-requests?'+params.toString();
     };
 

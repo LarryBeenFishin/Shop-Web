@@ -122,11 +122,14 @@ module.exports=async function handler(req,res){
       const id=s(req.body?.id,80);if(!id)return json(res,400,{error:'Missing inspection request id'});
       const {data:existing,error:loadError}=await supabase.from('inspection_requests').select('*').eq('id',id).eq('shop_id',shop.id).maybeSingle();
       if(loadError)throw loadError;if(!existing)return json(res,404,{error:'Inspection request not found'});
-      if(existing.status==='completed')return json(res,409,{error:'A completed inspection request cannot be changed'});
+      const changingTechnician=req.body?.technician_id!==undefined;
+      if(existing.status==='completed'&&!changingTechnician)return json(res,409,{error:'A completed inspection request cannot be changed'});
       const patch={updated_at:new Date().toISOString()};
       if(req.body?.status!==undefined){const status=s(req.body.status,30);if(!['requested','in_progress','cancelled'].includes(status))return json(res,400,{error:'Invalid request status'});patch.status=status;}
-      if(req.body?.technician_id!==undefined){const technicianId=s(req.body.technician_id,80);const {data:technician,error}=await supabase.from('technician_accounts').select('id').eq('id',technicianId).eq('shop_id',shop.id).eq('active',true).maybeSingle();if(error)throw error;if(!technician)return json(res,400,{error:'Choose an active technician account'});patch.technician_id=technician.id;}
+      let assignedTechnician=null;
+      if(changingTechnician){const technicianId=s(req.body.technician_id,80);if(!technicianId){if(existing.status==='completed')return json(res,400,{error:'A completed inspection must have an assigned technician'});patch.technician_id=null;}else{const {data:technician,error}=await supabase.from('technician_accounts').select('id,name').eq('id',technicianId).eq('shop_id',shop.id).eq('active',true).maybeSingle();if(error)throw error;if(!technician)return json(res,400,{error:'Choose an active technician account'});assignedTechnician=technician;patch.technician_id=technician.id;}if(existing.status==='in_progress'&&technicianId!==existing.technician_id){patch.status='requested';patch.started_at=null;}}
       const {data,error}=await supabase.from('inspection_requests').update(patch).eq('id',id).eq('shop_id',shop.id).select('*').single();if(error)throw error;
+      if(existing.status==='completed'&&existing.inspection_id&&assignedTechnician){const {error:inspectionError}=await supabase.from('inspections').update({technician_id:assignedTechnician.id,technician:assignedTechnician.name}).eq('id',existing.inspection_id).eq('shop_id',shop.id);if(inspectionError)throw inspectionError;}
       await auditEvent(supabase,shop.id,'inspection.request.updated','inspection_request',data.id,{fields:Object.keys(patch),status:data.status});
       return json(res,200,{status:'success',request:data});
     }

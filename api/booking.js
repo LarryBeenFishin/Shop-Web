@@ -1,5 +1,5 @@
 const { Resend } = require('resend');
-const { db, upsertCustomer, auditEvent } = require('./_db');
+const { db, upsertCustomer, upsertCustomerVehicle, auditEvent } = require('./_db');
 const { resolveShop, applyShopScope, withShopId } = require('./_tenant');
 const { sendShopPush } = require('./_notifications');
 const { validDate, validMonth, timeKey, availabilityForDate, monthBounds, loadAvailability } = require('./_availability');
@@ -126,6 +126,13 @@ module.exports = async function handler(req, res) {
       service:String(p.service).trim().slice(0,120)
     },shop.id).catch(err=>{console.error('Customer sync error:',err?.message||err);return null;});
 
+    const vehicle=customer?await upsertCustomerVehicle(supabase,{
+      year:p.year,
+      make:p.make,
+      model:p.model,
+      service:p.service
+    },shop.id,customer.id).catch(err=>{console.error('Vehicle sync error:',err?.message||err);return null;}):null;
+
     const baseRow = {
       name: String(p.name).trim().slice(0,120),
       phone: String(p.phone).trim().slice(0,40),
@@ -146,7 +153,7 @@ module.exports = async function handler(req, res) {
       seen:false,
       updated_at:new Date().toISOString()
     };
-    if(shop.id) baseRow.customer_id=customer?.id||null;
+    if(shop.id){baseRow.customer_id=customer?.id||null;baseRow.vehicle_id=vehicle?.id||null;}
     const row=withShopId(baseRow,shop);
 
     const { data, error } = await supabase.from('appointments').insert(row).select('*').single();
@@ -156,6 +163,28 @@ module.exports = async function handler(req, res) {
     }
 
     await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',customer_id:data.customer_id||null,service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
+
+    if(shop.id){
+      const requestNotes=[data.service?`Service: ${data.service}`:'',data.message?`Customer concern: ${data.message}`:''].filter(Boolean).join('\n')||null;
+      const requestRow={
+        shop_id:shop.id,
+        appointment_id:data.id,
+        technician_id:null,
+        customer_id:customer?.id||null,
+        vehicle_id:vehicle?.id||null,
+        customer_name:data.name,
+        phone:data.phone||null,
+        email:data.email||null,
+        vehicle:[data.year,data.make,data.model].filter(Boolean).join(' '),
+        mileage:vehicle?.mileage||null,
+        request_notes:requestNotes,
+        status:'requested',
+        updated_at:new Date().toISOString()
+      };
+      const {data:inspectionRequest,error:requestError}=await supabase.from('inspection_requests').insert(requestRow).select('id').maybeSingle();
+      if(requestError)console.error('Automatic inspection request error:',requestError.message||requestError);
+      else if(inspectionRequest)await auditEvent(supabase,shop.id,'inspection.requested','inspection_request',inspectionRequest.id,{source:'online_appointment',appointment_id:data.id,customer:data.name,vehicle:requestRow.vehicle},'customer');
+    }
 
     await Promise.allSettled([
       sendEmails(shop, data),

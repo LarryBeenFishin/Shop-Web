@@ -56,8 +56,11 @@ For a brand-new Supabase project run these files in order:
 4. `supabase/customer_vehicles.sql`
 5. `supabase/dynamic_inspections.sql`
 6. `supabase/technician_portal.sql`
+7. `supabase/automatic_inspection_requests.sql`
 
 `multi_tenant_v2.sql` creates the `shops` tenant table, attaches `shop_id` to all operational tables, migrates existing data into the first shop, creates tenant-aware indexes, and adds the audit log.
+
+`automatic_inspection_requests.sql` enables unassigned inspection requests, links them to appointments, and adds upcoming website appointments that do not already have a request.
 
 ## Vercel environment variables
 
