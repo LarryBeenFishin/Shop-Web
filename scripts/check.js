@@ -33,7 +33,13 @@ const jsFiles=[...new Set([
   ...ROOT_JS.filter(file=>fs.existsSync(path.join(ROOT,file)))
 ])];
 for(const file of jsFiles){
-  checkScript(fs.readFileSync(path.join(ROOT,file),'utf8'),file);
+  const source=fs.readFileSync(path.join(ROOT,file),'utf8');
+  checkScript(source,file);
+  if(/\.addEventListener\(\s*(?:async\s*)?(?:\(?\s*[a-zA-Z_$][\w$]*\s*\)?\s*=>)/.test(source)){
+    failed=true;
+    console.error(`FAIL ${file}`);
+    console.error('addEventListener appears to be missing its event-name argument');
+  }
 }
 
 for(const file of HTML_DIRS.flatMap(dir=>walk(dir,'.html'))){
