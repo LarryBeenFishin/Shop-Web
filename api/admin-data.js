@@ -311,6 +311,17 @@ module.exports=async function handler(req,res){
       return json(res,200,{status:'success',inspection:data,inspectionId:data.id});
     }
 
+    if(req.method==='DELETE' && action==='inspection'){
+      const id=s(req.query.id||req.body?.id,80);if(!id)return json(res,400,{error:'Missing inspection id'});
+      let find=supabase.from('inspections').select('id,inspection_request_id,customer_name,vehicle').eq('id',id);find=applyShopScope(find,shop);
+      const {data:existing,error:findError}=await find.maybeSingle();if(findError)throw findError;if(!existing)return json(res,404,{error:'Inspection not found'});
+      let del=supabase.from('inspections').delete().eq('id',id);del=applyShopScope(del,shop);
+      const {error}=await del;if(error)throw error;
+      if(existing.inspection_request_id){const {error:requestError}=await supabase.from('inspection_requests').update({status:'requested',inspection_id:null,completed_at:null,started_at:null,updated_at:new Date().toISOString()}).eq('id',existing.inspection_request_id).eq('shop_id',shop.id);if(requestError)throw requestError;}
+      await auditEvent(supabase,shop.id,'inspection.deleted','inspection',id,{customer:existing.customer_name,vehicle:existing.vehicle,reopened_request_id:existing.inspection_request_id||null});
+      return json(res,200,{status:'success'});
+    }
+
     return json(res,400,{error:'Unsupported action'});
   }catch(err){
     console.error(err);
