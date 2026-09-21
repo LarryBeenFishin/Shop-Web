@@ -79,9 +79,20 @@ module.exports=async function handler(req,res){
       if(password.length<8)return json(res,400,{error:'Temporary password must be at least 8 characters'});
       const row={shop_id:shop.id,name,username,password_hash:hashPassword(password),active:true,updated_at:new Date().toISOString()};
       const {data,error}=await supabase.from('technician_accounts').insert(row).select('id,name,username,active').single();
-      if(error){if(error.code==='23505')return json(res,409,{error:'That username is already in use'});throw error;}
-      await auditEvent(supabase,shop.id,'technician.created','technician',data.id,{name:data.name,username:data.username});
-      return json(res,201,{status:'success',technician:safeTechnician(data)});
+      if(!error){
+        await auditEvent(supabase,shop.id,'technician.created','technician',data.id,{name:data.name,username:data.username});
+        return json(res,201,{status:'success',technician:safeTechnician(data)});
+      }
+      if(error.code!=='23505')throw error;
+      const {data:matches,error:matchError}=await supabase.from('technician_accounts').select('id,name,username,active').eq('shop_id',shop.id).limit(1000);
+      if(matchError)throw matchError;
+      const inactive=(matches||[]).find(account=>account.active===false&&String(account.username||'').toLowerCase()===username);
+      if(!inactive)return json(res,409,{error:'That username is already in use'});
+      const {data:reactivated,error:reactivateError}=await supabase.from('technician_accounts').update({name,username,password_hash:row.password_hash,active:true,updated_at:row.updated_at}).eq('id',inactive.id).eq('shop_id',shop.id).eq('active',false).select('id,name,username,active').maybeSingle();
+      if(reactivateError){if(reactivateError.code==='23505')return json(res,409,{error:'That username is already in use'});throw reactivateError;}
+      if(!reactivated)return json(res,409,{error:'That username is already in use'});
+      await auditEvent(supabase,shop.id,'technician.reactivated','technician',reactivated.id,{previous_name:inactive.name,name:reactivated.name,username:reactivated.username});
+      return json(res,200,{status:'success',technician:safeTechnician(reactivated),reactivated:true});
     }
 
     if(req.method==='PATCH' && action==='technician'){
