@@ -1,4 +1,4 @@
-const { verifyForShop, hashPassword } = require('./_auth');
+const { verifyForShop, hashPassword, verifyPassword } = require('./_auth');
 const { db, upsertCustomer, upsertCustomerVehicle, normalizePhone, auditEvent, missingTable } = require('./_db');
 const { resolveShop, applyShopScope, withShopId, clearShopCache } = require('./_tenant');
 const { loadAvailability, saveAvailability } = require('./_availability');
@@ -37,10 +37,26 @@ module.exports=async function handler(req,res){
   const supabase=db();
   let shop;
   try{shop=await resolveShop(req,supabase);}catch(err){console.error(err);return json(res,500,{error:err.message||'Unable to resolve shop'});}
-  if(!verifyForShop(req,shop)) return json(res,401,{error:'Unauthorized'});
+  const session=verifyForShop(req,shop);
+  if(!session) return json(res,401,{error:'Unauthorized'});
   const action=s(req.query.action||req.body?.action,80);
 
   try{
+    if(req.method==='PUT' && action==='owner-password'){
+      if(!shop.id||!session.adminId)return json(res,400,{error:'Sign in with a shop owner account to change its password'});
+      const currentPassword=String(req.body?.currentPassword||''),newPassword=String(req.body?.newPassword||'');
+      if(!currentPassword||!newPassword)return json(res,400,{error:'Current password and new password are required'});
+      if(newPassword.length<8)return json(res,400,{error:'New password must be at least 8 characters'});
+      const {data:account,error:findError}=await supabase.from('shop_admin_accounts').select('id,password_hash,active').eq('id',session.adminId).eq('shop_id',shop.id).maybeSingle();
+      if(findError)throw findError;
+      if(!account?.active)return json(res,401,{error:'Owner account not found or inactive'});
+      if(!verifyPassword(currentPassword,account.password_hash))return json(res,401,{error:'Current password is incorrect'});
+      const {error}=await supabase.from('shop_admin_accounts').update({password_hash:hashPassword(newPassword),updated_at:new Date().toISOString()}).eq('id',account.id).eq('shop_id',shop.id);
+      if(error)throw error;
+      await auditEvent(supabase,shop.id,'owner.password.updated','shop_admin_account',account.id,{},`admin:${account.id}`);
+      return json(res,200,{status:'success'});
+    }
+
     if(req.method==='GET' && action==='shop-settings'){
       if(!shop.id)return json(res,200,{status:'success',shop:{name:shop.name,technicians:[],inspectionBlocks:[...DEFAULT_INSPECTION_BLOCKS]}});
       const {data,error}=await supabase.from('shops').select('name,public_config').eq('id',shop.id).maybeSingle();

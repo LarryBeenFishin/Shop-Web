@@ -1,4 +1,4 @@
-const { verifyTechForShop } = require('./_auth');
+const { verifyTechForShop, hashPassword, verifyPassword } = require('./_auth');
 const { db, auditEvent, upsertCustomer, upsertCustomerVehicle, normalizePhone } = require('./_db');
 const { resolveShop, withShopId } = require('./_tenant');
 
@@ -17,22 +17,35 @@ module.exports=async function handler(req,res){
   try{
     const shop=await resolveShop(req,supabase),session=verifyTechForShop(req,shop);
     if(!session)return json(res,401,{error:'Unauthorized'});
-    const {data:technician,error:techError}=await supabase.from('technician_accounts').select('id,name,username,active').eq('shop_id',shop.id).eq('id',session.technicianId).maybeSingle();
+    const {data:technician,error:techError}=await supabase.from('technician_accounts').select('id,name,username,password_hash,active').eq('shop_id',shop.id).eq('id',session.technicianId).maybeSingle();
     if(techError)throw techError;
     if(!technician?.active)return json(res,401,{error:'This technician account is inactive'});
     const action=clean(req.query.action||req.body?.action,80);
+
+    if(req.method==='PUT'&&action==='password'){
+      const currentPassword=String(req.body?.currentPassword||''),newPassword=String(req.body?.newPassword||'');
+      if(!currentPassword||!newPassword)return json(res,400,{error:'Current password and new password are required'});
+      if(newPassword.length<8)return json(res,400,{error:'New password must be at least 8 characters'});
+      if(!verifyPassword(currentPassword,technician.password_hash))return json(res,401,{error:'Current password is incorrect'});
+      const {error}=await supabase.from('technician_accounts').update({password_hash:hashPassword(newPassword),updated_at:new Date().toISOString()}).eq('id',technician.id).eq('shop_id',shop.id).eq('active',true);
+      if(error)throw error;
+      await auditEvent(supabase,shop.id,'technician.password.updated','technician',technician.id,{},`technician:${technician.id}`);
+      return json(res,200,{status:'success'});
+    }
+
+    const publicTechnician={id:technician.id,name:technician.name,username:technician.username,active:technician.active};
 
     if(req.method==='GET'&&(action==='session'||action==='requests')){
       let query=supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).or(`technician_id.is.null,technician_id.eq.${technician.id}`).order('created_at',{ascending:false}).limit(200);
       if(action==='requests')query=req.query.status?query.eq('status',clean(req.query.status,30)):query.in('status',['requested','in_progress']);
       const {data,error}=await query;if(error)throw error;
-      return json(res,200,{status:'success',shop:{name:shop.name,inspectionBlocks:inspectionTemplate(shop.public_config)},technician,requests:data||[]});
+      return json(res,200,{status:'success',shop:{name:shop.name,inspectionBlocks:inspectionTemplate(shop.public_config)},technician:publicTechnician,requests:data||[]});
     }
 
     if(req.method==='GET'&&action==='inspections'){
       const {data,error}=await supabase.from('inspections').select('*').eq('shop_id',shop.id).order('created_at',{ascending:false}).limit(1000);
       if(error)throw error;
-      return json(res,200,{status:'success',shop:{name:shop.name,inspectionBlocks:inspectionTemplate(shop.public_config)},technician,inspections:(data||[]).map(item=>({...item,can_edit:item.technician_id===technician.id||(!item.technician_id&&clean(item.technician,120).toLowerCase()===technician.name.toLowerCase())}))});
+      return json(res,200,{status:'success',shop:{name:shop.name,inspectionBlocks:inspectionTemplate(shop.public_config)},technician:publicTechnician,inspections:(data||[]).map(item=>({...item,can_edit:item.technician_id===technician.id||(!item.technician_id&&clean(item.technician,120).toLowerCase()===technician.name.toLowerCase())}))});
     }
 
     if(req.method==='GET'&&action==='customer-lookup'){

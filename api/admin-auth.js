@@ -24,7 +24,8 @@ module.exports = async function handler(req,res){
     const username=String(req.body?.username||'').trim().toLowerCase();
     const password=String(req.body?.password||'');
 
-    if(username&&shop.id){
+    if(shop.id){
+      if(!username||!password)return res.status(400).json({error:'Username and password are required'});
       const {data:account,error}=await supabase.from('shop_admin_accounts').select('*').eq('shop_id',shop.id).eq('username',username).eq('active',true).maybeSingle();
       if(error&&!missingAdminTable(error))throw error;
       if(account&&verifyPassword(password,account.password_hash)){
