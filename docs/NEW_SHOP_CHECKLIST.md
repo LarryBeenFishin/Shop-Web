@@ -2,6 +2,8 @@
 
 Use this every time a new repair shop is added to Shop-Web.
 
+Before adding shops, run `supabase/account_recovery_and_marketing.sql` once after the platform-owner and technician migrations. It adds recovery emails, secure reset tokens, appointment text consent, marketing consent, and campaign history.
+
 ## 1. Create the tenant in the owner portal
 
 Open `/platform`, select **Add shop**, and enter the shop details, first domain, and first administrator account. The portal creates the required tenant records without exposing the Supabase service key.
@@ -66,6 +68,8 @@ Copy shared platform values:
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `RESEND_API_KEY`
+- `RESEND_FROM_EMAIL` — a sender on a verified Resend domain
+- `MARKETING_UNSUBSCRIBE_SECRET` — a long random value (the admin session secret is used as a fallback)
 - VAPID keys if push notifications are enabled
 
 Create new per-shop values:

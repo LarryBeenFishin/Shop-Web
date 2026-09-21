@@ -25,7 +25,7 @@ function publicConfig(input,current={}){
   if(input.logo_url!==undefined)brand.logo_url=s(input.logo_url,1000)||null;
   return {...prior,contact,brand};
 }
-function safeAdmin(row){return {id:row.id,shop_id:row.shop_id,name:row.name,username:row.username,active:row.active!==false,created_at:row.created_at,last_login_at:row.last_login_at}}
+function safeAdmin(row){return {id:row.id,shop_id:row.shop_id,name:row.name,username:row.username,email:row.email||'',active:row.active!==false,created_at:row.created_at,last_login_at:row.last_login_at}}
 async function platformAudit(supabase,shopId,action,metadata={}){
   try{await supabase.from('platform_audit_events').insert({shop_id:shopId||null,action,metadata:safeObject(metadata)})}catch(error){console.error('Platform audit error:',error?.message||error)}
 }
@@ -52,7 +52,7 @@ module.exports=async function handler(req,res){
       const [{data:shops,error:shopError},{data:domains,error:domainError},{data:admins,error:adminError},{data:migrations,error:migrationError},{data:events,error:eventError}]=await Promise.all([
         supabase.from('shops').select('*').order('created_at',{ascending:true}),
         supabase.from('shop_domains').select('*').order('is_primary',{ascending:false}).order('created_at',{ascending:true}),
-        supabase.from('shop_admin_accounts').select('id,shop_id,name,username,active,created_at,last_login_at').order('created_at',{ascending:true}),
+        supabase.from('shop_admin_accounts').select('id,shop_id,name,username,email,active,created_at,last_login_at').order('created_at',{ascending:true}),
         supabase.from('shop_migrations').select('*'),
         supabase.from('platform_audit_events').select('*').order('created_at',{ascending:false}).limit(30)
       ]);
@@ -87,15 +87,16 @@ module.exports=async function handler(req,res){
       if(!validSlug(slug))return json(res,400,{error:'Use lowercase letters, numbers, and dashes for the shop slug'});
       const hostname=normalizeHostname(req.body?.primary_domain);
       if(hostname&&!validHostname(hostname))return json(res,400,{error:'Enter a valid domain name'});
-      const adminUsername=s(req.body?.admin_username,40).toLowerCase(),adminPassword=String(req.body?.admin_password||''),adminName=s(req.body?.admin_name,120);
+      const adminUsername=s(req.body?.admin_username,40).toLowerCase(),adminEmail=s(req.body?.admin_email,240).toLowerCase(),adminPassword=String(req.body?.admin_password||''),adminName=s(req.body?.admin_name,120);
       if(adminUsername&&!validUsername(adminUsername))return json(res,400,{error:'Admin username must be 3–40 characters using letters, numbers, periods, dashes, or underscores'});
+      if(adminUsername&&!/^\S+@\S+\.\S+$/.test(adminEmail))return json(res,400,{error:'A valid admin recovery email is required'});
       if(adminUsername&&adminPassword.length<8)return json(res,400,{error:'Admin password must be at least 8 characters'});
       const row={name,slug,timezone,status,notification_email:s(req.body?.notification_email,240)||null,public_config:publicConfig(req.body)};
       const {data:shop,error}=await supabase.from('shops').insert(row).select('*').single();
       if(error){if(error.code==='23505')return json(res,409,{error:'That shop slug is already in use'});throw error}
       try{
         if(hostname){const {error:domainError}=await supabase.from('shop_domains').insert({shop_id:shop.id,hostname,is_primary:true});if(domainError)throw domainError}
-        if(adminUsername){const {error:adminError}=await supabase.from('shop_admin_accounts').insert({shop_id:shop.id,name:adminName||'Shop Administrator',username:adminUsername,password_hash:hashPassword(adminPassword)});if(adminError)throw adminError}
+        if(adminUsername){const {error:adminError}=await supabase.from('shop_admin_accounts').insert({shop_id:shop.id,name:adminName||'Shop Administrator',username:adminUsername,email:adminEmail,password_hash:hashPassword(adminPassword)});if(adminError)throw adminError}
         const {error:migrationError}=await supabase.from('shop_migrations').insert({shop_id:shop.id,source:s(req.body?.migration_source,160)||null,status:'not_started'});if(migrationError)throw migrationError;
       }catch(setupError){
         await supabase.from('shops').delete().eq('id',shop.id);
@@ -153,10 +154,10 @@ module.exports=async function handler(req,res){
     }
 
     if(req.method==='POST'&&action==='admin'){
-      const shopId=s(req.body?.shop_id,80),name=s(req.body?.name,120),username=s(req.body?.username,40).toLowerCase(),password=String(req.body?.password||'');
+      const shopId=s(req.body?.shop_id,80),name=s(req.body?.name,120),username=s(req.body?.username,40).toLowerCase(),email=s(req.body?.email,240).toLowerCase(),password=String(req.body?.password||'');
       if(!await loadShop(supabase,shopId))return json(res,404,{error:'Shop not found'});
-      if(!name)return json(res,400,{error:'Admin name is required'});if(!validUsername(username))return json(res,400,{error:'Enter a valid admin username'});if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});
-      const {data,error}=await supabase.from('shop_admin_accounts').insert({shop_id:shopId,name,username,password_hash:hashPassword(password),active:true}).select('*').single();
+      if(!name)return json(res,400,{error:'Admin name is required'});if(!validUsername(username))return json(res,400,{error:'Enter a valid admin username'});if(!/^\S+@\S+\.\S+$/.test(email))return json(res,400,{error:'Enter a valid recovery email'});if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});
+      const {data,error}=await supabase.from('shop_admin_accounts').insert({shop_id:shopId,name,username,email,password_hash:hashPassword(password),active:true}).select('*').single();
       if(error){if(error.code==='23505')return json(res,409,{error:'That username already exists for this shop'});throw error}
       await platformAudit(supabase,shopId,'admin.created',{name,username});return json(res,201,{status:'success',admin:safeAdmin(data)});
     }
@@ -165,6 +166,7 @@ module.exports=async function handler(req,res){
       const id=s(req.body?.id,80),shopId=s(req.body?.shop_id,80),patch={updated_at:new Date().toISOString()};
       if(req.body?.name!==undefined){patch.name=s(req.body.name,120);if(!patch.name)return json(res,400,{error:'Admin name is required'})}
       if(req.body?.username!==undefined){patch.username=s(req.body.username,40).toLowerCase();if(!validUsername(patch.username))return json(res,400,{error:'Enter a valid admin username'})}
+      if(req.body?.email!==undefined){patch.email=s(req.body.email,240).toLowerCase();if(!/^\S+@\S+\.\S+$/.test(patch.email))return json(res,400,{error:'Enter a valid recovery email'})}
       if(req.body?.active!==undefined)patch.active=bool(req.body.active);
       if(req.body?.password!==undefined){const password=String(req.body.password||'');if(password.length<8)return json(res,400,{error:'Password must be at least 8 characters'});patch.password_hash=hashPassword(password)}
       const {data,error}=await supabase.from('shop_admin_accounts').update(patch).eq('id',id).eq('shop_id',shopId).select('*').maybeSingle();

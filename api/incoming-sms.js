@@ -25,10 +25,13 @@ module.exports=async function handler(req,res){
     const phone=normalizePhone(body.From||body.from)||String(body.From||body.from||'').trim();
     const message=String(body.Body||body.body||'').trim().slice(0,1600);
     if(phone&&message){
-      let customerQuery=supabase.from('customers').select('name').eq('normalized_phone',normalizePhone(phone)).limit(1);
+      let customerQuery=supabase.from('customers').select('id,name').eq('normalized_phone',normalizePhone(phone)).limit(1);
       customerQuery=applyShopScope(customerQuery,shop);
       const {data:customers}=await customerQuery;
       const customerName=customers?.[0]?.name||null;
+      const keyword=message.toUpperCase().replace(/[^A-Z]/g,'');
+      if(customers?.[0]?.id&&['STOP','UNSUBSCRIBE','CANCEL','END','QUIT'].includes(keyword))await supabase.from('customers').update({sms_marketing_opt_in:false,sms_unsubscribed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',customers[0].id);
+      if(customers?.[0]?.id&&['START','UNSTOP','YES'].includes(keyword))await supabase.from('customers').update({sms_marketing_opt_in:true,sms_unsubscribed_at:null,marketing_consent_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',customers[0].id);
       const row=withShopId({
         direction:'incoming',
         customer_name:customerName,

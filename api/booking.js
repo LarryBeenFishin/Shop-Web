@@ -2,6 +2,7 @@ const { Resend } = require('resend');
 const { db, upsertCustomer, upsertCustomerVehicle, auditEvent } = require('./_db');
 const { resolveShop, applyShopScope, withShopId } = require('./_tenant');
 const { sendShopPush } = require('./_notifications');
+const { sendSms } = require('./_communications');
 const { validDate, validMonth, timeKey, availabilityForDate, monthBounds, loadAvailability } = require('./_availability');
 
 function esc(value) {
@@ -44,6 +45,15 @@ async function sendEmails(shop, appt) {
     }));
   }
   await Promise.allSettled(jobs);
+}
+async function sendAppointmentText(supabase,shop,appt){
+  if(!appt.sms_confirmation_opt_in||!appt.phone)return;
+  const when=`${appt.preferred_date_label} at ${appt.appointment_time}`;
+  const body=`${shop.name}: We received your appointment request for ${when}. Reply here with questions. Reply STOP to stop texts.`;
+  const result=await sendSms(shop,{to:appt.phone,body});
+  const {error:logError}=await supabase.from('sms_messages').insert(withShopId({direction:'outgoing',customer_name:appt.name,phone:appt.phone,message:body,provider_sid:result?.sid||null,status:result?.status||'queued'},shop));
+  if(logError)console.error('Appointment SMS log error:',logError.message||logError);
+  return result?.sid||null;
 }
 
 module.exports = async function handler(req, res) {
@@ -123,7 +133,9 @@ module.exports = async function handler(req, res) {
       phone:String(p.phone).trim().slice(0,40),
       email:String(p.email||'').trim().slice(0,200)||null,
       vehicle:`${String(p.year).trim()} ${String(p.make).trim()} ${String(p.model).trim()}`,
-      service:String(p.service).trim().slice(0,120)
+      service:String(p.service).trim().slice(0,120),
+      email_marketing_opt_in:boolish(p.email_marketing_opt_in)&&Boolean(String(p.email||'').trim()),
+      sms_marketing_opt_in:boolish(p.sms_marketing_opt_in)
     },shop.id).catch(err=>{console.error('Customer sync error:',err?.message||err);return null;});
 
     const vehicle=customer?await upsertCustomerVehicle(supabase,{
@@ -148,6 +160,7 @@ module.exports = async function handler(req, res) {
       drop_off: boolish(p.drop_off),
       message: String(p.message || '').trim().slice(0,3000) || null,
       marketing_opt_in: boolish(p.marketing_opt_in),
+      sms_confirmation_opt_in: boolish(p.sms_confirmation_opt_in),
       submitted_from: String(p.submitted_from || `${shop.name} Website`).slice(0,120),
       status: 'pending',
       seen:false,
@@ -188,6 +201,7 @@ module.exports = async function handler(req, res) {
 
     await Promise.allSettled([
       sendEmails(shop, data),
+      sendAppointmentText(supabase,shop,data),
       sendShopPush(supabase,shop,{
         title:`New appointment — ${shop.name}`,
         body:`${data.name}: ${data.service} on ${data.preferred_date_label} at ${data.appointment_time}`,

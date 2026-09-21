@@ -38,6 +38,8 @@ async function upsertCustomer(supabase, input={}, shopId=null){
     notes:String(input.notes||'').trim() || null,
     updated_at:new Date().toISOString()
   };
+  if(input.email_marketing_opt_in===true){row.email_marketing_opt_in=true;row.email_unsubscribed_at=null;row.marketing_consent_at=new Date().toISOString()}
+  if(input.sms_marketing_opt_in===true){row.sms_marketing_opt_in=true;row.sms_unsubscribed_at=null;row.marketing_consent_at=new Date().toISOString()}
   if(tenantId) row.shop_id=tenantId;
 
   if(normalized_phone){

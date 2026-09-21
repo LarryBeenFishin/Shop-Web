@@ -89,6 +89,7 @@
       <div class="form-section"><h3>First admin account</h3><div class="form-grid three">
         <label>Name<input name="admin_name" placeholder="Shop administrator"></label>
         <label>Username<input name="admin_username" autocomplete="off" placeholder="smithadmin"></label>
+        <label>Recovery email<input name="admin_email" type="email" autocomplete="email" placeholder="owner@example.com"></label>
         <label>Temporary password<input name="admin_password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label>
       </div></div>
       <div class="dialog-error" id="createShopError" role="alert"></div>
@@ -114,7 +115,7 @@
 
           <section class="form-section"><div class="section-heading"><div><h3>Website and domains</h3><p>A mapped domain tells the platform which shop website to load.</p></div></div><div class="website-actions"><a class="primary button-link" id="openWebsiteLink" target="_blank" rel="noopener">Open website ↗</a><a class="secondary button-link" id="openAdminLink" target="_blank" rel="noopener">Open shop admin ↗</a></div><label>Logo URL<input id="detailLogoUrl" form="shopDetailsForm" name="logo_url" type="url" placeholder="https://..."></label><div id="domainList" class="managed-list"></div><form id="addDomainForm" class="inline-form"><input name="hostname" placeholder="shopdomain.com" required><label class="check"><input type="checkbox" name="is_primary"> Primary</label><button class="secondary" type="submit">Add domain</button></form></section>
 
-          <section class="form-section"><div class="section-heading"><div><h3>Shop administrators</h3><p>Each administrator is limited to this shop. Passwords can be reset without creating a duplicate account.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" autocomplete="name" required><input name="username" placeholder="Username" autocomplete="off" required><input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Temporary password" required><button class="secondary" id="addAdminSubmit" type="submit">Add admin</button></form><p class="form-help">Click once and wait for confirmation. The button locks while the account is being created.</p></section>
+          <section class="form-section"><div class="section-heading"><div><h3>Shop administrators</h3><p>Each administrator is limited to this shop. Recovery links are sent to the email saved on the account.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" autocomplete="name" required><input name="username" placeholder="Username" autocomplete="off" required><input name="email" type="email" placeholder="Recovery email" autocomplete="email" required><input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Temporary password" required><button class="secondary" id="addAdminSubmit" type="submit">Add admin</button></form><p class="form-help">The administrator can use “Forgot password?” on the shop sign-in page.</p></section>
         </div>
 
         <aside class="detail-side">
