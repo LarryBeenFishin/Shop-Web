@@ -15,8 +15,6 @@
       const phone=a.phone||'Not provided';
       const customerMessage=a.message&&String(a.message).trim()?a.message:'No customer message provided.';
       const dateLabel=a.preferred_date_label||a.appointment_date||'';
-      const onlineAppointment=a.submitted_from!=='Admin Dashboard';
-
       $('apptModalBody').innerHTML=`
         <div class="appt-detail-header">
           <div>
@@ -44,17 +42,6 @@
             <div class="appt-info-value">${esc(a.service||'Not provided')}</div>
           </div>
         </div>
-
-        <section class="appt-inspection-panel">
-          <div class="appt-inspection-copy">
-            <div class="appt-section-title">Vehicle Inspection</div>
-            <div class="appt-section-help">${onlineAppointment?'The inspection request was created automatically.':'Create an inspection report for this appointment.'}</div>
-          </div>
-          <div class="appt-inspection-actions ${onlineAppointment?'':'single'}">
-            <button class="appt-create-inspection-btn" type="button" onclick="createInspectionFromAppointment()"><span>✓</span>Create Inspection</button>
-            ${onlineAppointment?'<button class="appt-request-inspection-btn" type="button" onclick="manageInspectionAssignment()"><span>→</span>Manage Technician</button>':''}
-          </div>
-        </section>
 
         <section class="appt-section appt-reschedule-section">
           <div class="appt-section-heading">
@@ -86,6 +73,16 @@
           <div class="appt-section-help">Only the shop can see these notes.</div>
         </section>
 
+        <section class="appt-inspection-panel">
+          <div class="appt-inspection-copy">
+            <div class="appt-section-title">Vehicle Inspection</div>
+            <div class="appt-section-help">Send this vehicle to the technician inspection queue.</div>
+          </div>
+          <div class="appt-inspection-actions single">
+            <button class="appt-request-inspection-btn" type="button" onclick="requestInspectionFromAppointment()"><span>✓</span>Request Inspection</button>
+          </div>
+        </section>
+
         <div class="appt-modal-actions">
           <button class="appt-text-btn" onclick="textAppointment()">Text Customer</button>
           <button class="appt-save-btn" onclick="saveAppointment()">Save Changes</button>
@@ -97,34 +94,22 @@
       if(!a.seen)patchAppointment({id:a.id,seen:true}).catch(()=>{});
     };
 
-    function appointmentParams(a){
-      const params=new URLSearchParams();
-      const values={
-        appointment:a.id,
-        customer:a.customer_id,
-        vehicleId:a.vehicle_id,
-        name:a.name,
-        phone:a.phone,
-        email:a.email,
-        year:a.year,
-        make:a.make,
-        model:a.model,
-        service:a.service,
-        message:a.message
-      };
-      Object.entries(values).forEach(([key,value])=>{if(value!==undefined&&value!==null&&String(value).trim())params.set(key,String(value).trim())});
-      return params;
-    }
-
-    window.createInspectionFromAppointment=function(){
+    window.requestInspectionFromAppointment=async function(){
       if(!activeAppt)return;
-      location.href='/admin/inspection?'+appointmentParams(activeAppt).toString();
-    };
-
-    window.manageInspectionAssignment=function(){
-      if(!activeAppt)return;
-      const params=appointmentParams(activeAppt);
-      location.href='/admin/inspection-requests?'+params.toString();
+      const button=document.querySelector('#apptModalBody .appt-request-inspection-btn');
+      const notice=$('editNotice');
+      try{
+        if(button){button.disabled=true;button.innerHTML='<span>✓</span>Requesting...';}
+        const response=await fetch('/api/admin-data?action=inspection-request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({appointment_id:activeAppt.id})});
+        const result=await response.json();
+        if(response.status===401){location.href='/admin';return;}
+        if(!response.ok)throw new Error(result.error||'Could not request inspection');
+        if(result.request?.status==='completed'&&result.request?.inspection_id){location.href='/inspection?id='+encodeURIComponent(result.request.inspection_id);return;}
+        location.href='/admin/inspection-requests?appointment='+encodeURIComponent(activeAppt.id);
+      }catch(error){
+        if(notice){notice.textContent=error.message||'Could not request inspection.';notice.className='appt-save-notice error';}
+        if(button){button.disabled=false;button.innerHTML='<span>✓</span>Request Inspection';}
+      }
     };
 
     window.saveAppointment=async function(){

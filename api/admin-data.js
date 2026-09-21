@@ -103,6 +103,32 @@ module.exports=async function handler(req,res){
     }
 
     if(req.method==='POST' && action==='inspection-request'){
+      const appointmentId=s(req.body?.appointment_id,80);
+      if(appointmentId){
+        const {data:existing,error:existingError}=await supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).eq('appointment_id',appointmentId).maybeSingle();
+        if(existingError)throw existingError;
+        if(existing){
+          if(existing.status==='cancelled'){
+            const {data:reopened,error:reopenError}=await supabase.from('inspection_requests').update({status:'requested',technician_id:null,started_at:null,completed_at:null,updated_at:new Date().toISOString()}).eq('id',existing.id).eq('shop_id',shop.id).select('*').single();
+            if(reopenError)throw reopenError;
+            await auditEvent(supabase,shop.id,'inspection.requested','inspection_request',reopened.id,{source:'appointment',appointment_id:appointmentId,reopened:true});
+            return json(res,200,{status:'success',request:reopened,reused:true});
+          }
+          return json(res,200,{status:'success',request:existing,reused:true});
+        }
+        let appointmentQuery=supabase.from('appointments').select('*').eq('id',appointmentId);appointmentQuery=applyShopScope(appointmentQuery,shop);
+        const {data:appointment,error:appointmentError}=await appointmentQuery.maybeSingle();
+        if(appointmentError)throw appointmentError;if(!appointment)return json(res,404,{error:'Appointment not found'});
+        const vehicleText=[appointment.year,appointment.make,appointment.model].filter(Boolean).join(' ')||'Vehicle';
+        const customer=await upsertCustomer(supabase,{name:appointment.name,phone:appointment.phone,email:appointment.email,vehicle:vehicleText,service:appointment.service},shop.id);
+        const vehicle=customer?.id?await upsertCustomerVehicle(supabase,{year:appointment.year,make:appointment.make,model:appointment.model,vehicle_id:appointment.vehicle_id,service:appointment.service},shop.id,customer.id):null;
+        const requestNotes=[appointment.service?`Service: ${appointment.service}`:'',appointment.message?`Customer concern: ${appointment.message}`:''].filter(Boolean).join('\n')||null;
+        const row={shop_id:shop.id,appointment_id:appointment.id,technician_id:null,customer_id:customer?.id||appointment.customer_id||null,vehicle_id:vehicle?.id||appointment.vehicle_id||null,customer_name:appointment.name,phone:appointment.phone||null,email:appointment.email||null,vehicle:vehicleText,mileage:vehicle?.mileage||null,request_notes:requestNotes,status:'requested',updated_at:new Date().toISOString()};
+        const {data,error}=await supabase.from('inspection_requests').insert(row).select('*').single();
+        if(error){if(error.code==='23505')return json(res,409,{error:'An inspection has already been requested for this appointment'});throw error;}
+        await auditEvent(supabase,shop.id,'inspection.requested','inspection_request',data.id,{source:'appointment',appointment_id:appointment.id,customer:appointment.name,vehicle:vehicleText});
+        return json(res,201,{status:'success',request:data});
+      }
       const technicianId=s(req.body?.technician_id,80),customerId=s(req.body?.customer_id,80),vehicleId=s(req.body?.vehicle_id,80);
       if(!technicianId||!customerId||!vehicleId)return json(res,400,{error:'Customer, vehicle, and technician are required'});
       const [{data:technician,error:techError},{data:customer,error:customerError},{data:vehicle,error:vehicleError}]=await Promise.all([
