@@ -19,11 +19,16 @@ function publicConfig(input,current={}){
   const prior=safeObject(current);
   const contact={...safeObject(prior.contact)};
   const brand={...safeObject(prior.brand)};
+  const onboarding={...safeObject(prior.onboarding)};
   if(input.contact_name!==undefined)contact.name=s(input.contact_name,120)||null;
   if(input.contact_email!==undefined)contact.email=s(input.contact_email,240)||null;
   if(input.contact_phone!==undefined)contact.phone=s(input.contact_phone,50)||null;
   if(input.logo_url!==undefined)brand.logo_url=s(input.logo_url,1000)||null;
-  return {...prior,contact,brand};
+  for(const key of ['deployment_complete','workspace_complete','communications_complete','data_complete','launch_complete']){
+    const inputKey=`onboarding_${key}`;
+    if(input[inputKey]!==undefined)onboarding[key]=bool(input[inputKey]);
+  }
+  return {...prior,contact,brand,onboarding};
 }
 function safeAdmin(row){return {id:row.id,shop_id:row.shop_id,name:row.name,username:row.username,email:row.email||'',active:row.active!==false,created_at:row.created_at,last_login_at:row.last_login_at}}
 async function platformAudit(supabase,shopId,action,metadata={}){
@@ -116,7 +121,7 @@ module.exports=async function handler(req,res){
       if(req.body?.timezone!==undefined)patch.timezone=s(req.body.timezone,80)||'America/Chicago';
       if(req.body?.status!==undefined){if(!['active','paused','archived'].includes(req.body.status))return json(res,400,{error:'Invalid shop status'});patch.status=req.body.status}
       if(req.body?.notification_email!==undefined)patch.notification_email=s(req.body.notification_email,240)||null;
-      if(['contact_name','contact_email','contact_phone','logo_url'].some(key=>req.body?.[key]!==undefined))patch.public_config=publicConfig(req.body,current.public_config);
+      if(['contact_name','contact_email','contact_phone','logo_url','onboarding_deployment_complete','onboarding_workspace_complete','onboarding_communications_complete','onboarding_data_complete','onboarding_launch_complete'].some(key=>req.body?.[key]!==undefined))patch.public_config=publicConfig(req.body,current.public_config);
       const {data,error}=await supabase.from('shops').update(patch).eq('id',id).select('*').single();
       if(error){if(error.code==='23505')return json(res,409,{error:'That shop slug is already in use'});throw error}
       clearShopCache(current);clearShopCache(data);

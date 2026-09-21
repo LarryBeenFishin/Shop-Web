@@ -6,7 +6,15 @@ Before adding shops, run `supabase/account_recovery_and_marketing.sql` once afte
 
 ## 1. Create the tenant in the owner portal
 
-Open `/platform`, select **Add shop**, and enter the shop details, first domain, and first administrator account. The portal creates the required tenant records without exposing the Supabase service key.
+Open `/platform`, select **Add shop**, and complete the guided steps in order:
+
+1. Business identity and unique shop slug
+2. Primary contact and appointment notification email
+3. Website domain, or leave it blank until the domain is ready
+4. First owner login and recovery email
+5. Final review
+
+The portal creates the required tenant records without exposing the Supabase service key. It then opens the shop's saved **Setup and launch guide**. Complete that guide from top to bottom; manual completion marks are stored in `public_config.onboarding`, so another employee can see exactly where setup stopped and safely continue.
 
 In `public.shops`, add a row with:
 

@@ -1,4 +1,4 @@
-const state={shops:[],events:[],selectedId:null,importSetupRequired:false,importFile:null,importRows:[],importPreview:null};
+const state={shops:[],events:[],selectedId:null,createStep:0,importSetupRequired:false,importFile:null,importRows:[],importPreview:null};
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const number=value=>new Intl.NumberFormat().format(Number(value)||0);
@@ -48,8 +48,8 @@ function renderShops(){
   });
   $('shopList').innerHTML=shops.length?shops.map(shop=>{
     const primary=(shop.domains||[]).find(domain=>domain.is_primary)||(shop.domains||[])[0];
-    const counts=shop.counts||{};
-    return `<article class="shop-row" tabindex="0" role="button" data-shop-id="${esc(shop.id)}" aria-label="Manage ${esc(shop.name)}"><div class="shop-name"><div class="shop-avatar">${esc(initials(shop.name))}</div><div><strong>${esc(shop.name)}</strong><small>${esc(shop.slug)} · ${number((shop.admins||[]).filter(admin=>admin.active).length)} admin${(shop.admins||[]).filter(admin=>admin.active).length===1?'':'s'}</small></div></div><div class="domain-cell"><strong>${esc(primary?.hostname||'No domain mapped')}</strong><small>${primary?.is_primary?'Primary domain':'Domain setup needed'}</small></div><div class="activity-counts"><span class="count-chip">${number(counts.customers)} customers</span><span class="count-chip">${number(counts.inspections)} inspections</span><span class="count-chip">${number(counts.technicians)} techs</span></div><span class="status-badge status-${esc(shop.status)}">${esc(shop.status)}</span><span class="chevron">›</span></article>`;
+    const counts=shop.counts||{},setupSteps=onboardingSteps(shop),setupComplete=setupSteps.filter(step=>step.complete).length;
+    return `<article class="shop-row" tabindex="0" role="button" data-shop-id="${esc(shop.id)}" aria-label="Manage ${esc(shop.name)}"><div class="shop-name"><div class="shop-avatar">${esc(initials(shop.name))}</div><div><strong>${esc(shop.name)}</strong><small>${esc(shop.slug)} · ${number((shop.admins||[]).filter(admin=>admin.active).length)} admin${(shop.admins||[]).filter(admin=>admin.active).length===1?'':'s'}</small></div></div><div class="domain-cell"><strong>${esc(primary?.hostname||'No domain mapped')}</strong><small>${primary?.is_primary?'Primary domain':'Domain setup needed'}</small></div><div class="activity-counts"><span class="count-chip">Setup ${setupComplete}/7</span><span class="count-chip">${number(counts.customers)} customers</span><span class="count-chip">${number(counts.inspections)} inspections</span><span class="count-chip">${number(counts.technicians)} techs</span></div><span class="status-badge status-${esc(shop.status)}">${esc(shop.status)}</span><span class="chevron">›</span></article>`;
   }).join(''):'<div class="empty"><strong>No shops found</strong>Try a different search or add a shop.</div>';
   document.querySelectorAll('[data-shop-id]').forEach(row=>{row.addEventListener('click',()=>openShop(row.dataset.shopId));row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openShop(row.dataset.shopId)}})});
 }
@@ -70,11 +70,50 @@ async function login(event){
 }
 async function logout(){await fetch('/api/platform-logout',{method:'POST'}).catch(()=>{});showLogin()}
 function slugify(value){return String(value||'').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+function createShopFields(){return $('createShopForm').elements}
+function resetCreateShop(){
+  const form=$('createShopForm');form.reset();state.createStep=0;$('createShopError').textContent='';$('createShopConfirm').checked=false;
+  for(const name of ['slug','notification_email','admin_name','admin_username','admin_email'])delete form.elements[name].dataset.edited;
+  showCreateStep();
+}
+function currentCreatePanel(){return document.querySelector(`[data-create-step="${state.createStep}"]`)}
+function validateCreateStep(){
+  const fields=[...currentCreatePanel().querySelectorAll('input,select,textarea')];
+  for(const field of fields){if(!field.checkValidity()){field.reportValidity();return false}}
+  return true;
+}
+function createReviewRow(label,value){return `<div><span>${esc(label)}</span><strong>${esc(value||'Not provided')}</strong></div>`}
+function renderCreateShopReview(){
+  const fields=createShopFields();
+  $('createShopReview').innerHTML=[
+    createReviewRow('Business',fields.name.value),createReviewRow('Shop slug',fields.slug.value),createReviewRow('Timezone',fields.timezone.value),
+    createReviewRow('Primary contact',fields.contact_name.value),createReviewRow('Contact email',fields.contact_email.value),createReviewRow('Contact phone',fields.contact_phone.value),
+    createReviewRow('Appointment alerts',fields.notification_email.value),createReviewRow('Domain',fields.primary_domain.value||'Add after creation'),
+    createReviewRow('Owner login',`${fields.admin_name.value} · ${fields.admin_username.value}`),createReviewRow('Recovery email',fields.admin_email.value)
+  ].join('');
+}
+function showCreateStep(){
+  const panels=[...document.querySelectorAll('[data-create-step]')],steps=[...$('createShopProgress').children];
+  panels.forEach((panel,index)=>{const active=index===state.createStep;panel.hidden=!active;panel.classList.toggle('active',active)});
+  steps.forEach((step,index)=>{step.classList.toggle('active',index===state.createStep);step.classList.toggle('complete',index<state.createStep)});
+  $('createShopBack').classList.toggle('hidden',state.createStep===0);$('createShopNext').classList.toggle('hidden',state.createStep===panels.length-1);$('createShopSubmit').classList.toggle('hidden',state.createStep!==panels.length-1);
+  if(state.createStep===panels.length-1)renderCreateShopReview();
+  const first=panels[state.createStep].querySelector('input,select');if(first)setTimeout(()=>first.focus(),40);
+}
+function nextCreateStep(){if(!validateCreateStep())return;state.createStep=Math.min(4,state.createStep+1);showCreateStep()}
+function previousCreateStep(){state.createStep=Math.max(0,state.createStep-1);showCreateStep()}
 async function createShop(event){
   event.preventDefault();
   if(event.submitter?.value==='cancel'){$('createShopDialog').close();return}
-  const form=event.currentTarget,data=Object.fromEntries(new FormData(form));$('createShopError').textContent='';$('createShopSubmit').disabled=true;
-  try{await api('shop',{method:'POST',body:JSON.stringify(data)});form.reset();$('createShopDialog').close();await load();toast(`${data.name} was created`)}catch(error){$('createShopError').textContent=error.message}finally{$('createShopSubmit').disabled=false}
+  if(state.createStep!==4){nextCreateStep();return}
+  const form=event.currentTarget;if(!form.reportValidity())return;
+  const data=Object.fromEntries(new FormData(form));$('createShopError').textContent='';$('createShopSubmit').disabled=true;$('createShopSubmit').textContent='Creating…';
+  try{
+    await api('shop',{method:'POST',body:JSON.stringify(data)});$('createShopDialog').close();await load();
+    const created=state.shops.find(shop=>shop.slug===data.slug);if(created)openShop(created.id);
+    resetCreateShop();toast(`${data.name} was created. Continue with the setup guide.`)
+  }catch(error){$('createShopError').textContent=error.message}
+  finally{$('createShopSubmit').disabled=false;$('createShopSubmit').textContent='Create shop'}
 }
 function openShop(id){state.selectedId=id;resetImport();const shop=selected();if(!shop)return;renderDetail(shop);$('shopDialog').showModal()}
 function renderDetail(shop){
@@ -84,7 +123,45 @@ function renderDetail(shop){
   const primary=(shop.domains||[]).find(domain=>domain.is_primary)||(shop.domains||[])[0];
   $('openWebsiteLink').href=primary?`https://${primary.hostname}`:'#';$('openWebsiteLink').classList.toggle('hidden',!primary);
   $('openAdminLink').href=primary?`https://${primary.hostname}/admin`:'#';$('openAdminLink').classList.toggle('hidden',!primary);
-  renderDomains(shop);renderAdmins(shop);renderDetailMetrics(shop);renderMigration(shop);
+  renderOnboarding(shop);renderDomains(shop);renderAdmins(shop);renderDetailMetrics(shop);renderMigration(shop);
+}
+function setupStepComplete(shop,key){return Boolean(shop.public_config?.onboarding?.[key])}
+function onboardingSteps(shop){
+  const contact=shop.public_config?.contact||{},hasDomain=(shop.domains||[]).length>0;
+  return [
+    {title:'Confirm business and contact details',description:'Verify the customer record before creating any connected services.',items:['Official business name, timezone, owner name, email, and phone are correct.','Appointment notification email is the inbox the shop actively monitors.'],complete:Boolean(shop.name&&shop.timezone&&shop.notification_email&&contact.name&&contact.email&&contact.phone),target:'shopDetailsSection'},
+    {title:'Confirm the owner login',description:'Make sure the owner has a recoverable account limited to this shop.',items:['Administrator is active and the username was given to the correct owner.','Recovery email belongs to the owner and can receive password-reset messages.'],complete:(shop.admins||[]).some(admin=>admin.active&&admin.email),target:'adminsSection'},
+    {title:'Connect the website deployment and domain',description:'Create a separate deployment from the shared codebase.',items:['Create a new Vercel project from the same Shop-Web GitHub repository.','Copy the shared Supabase and communication environment variables.','Set SHOP_SLUG to this shop’s slug and create a unique ADMIN_SESSION_SECRET.',`Deploy, test the preview, connect the primary domain, and save that domain here. Current slug: ${shop.slug}`],complete:hasDomain&&setupStepComplete(shop,'deployment_complete'),key:'deployment_complete',target:'domainsSection',requirement:hasDomain?'':'Add a domain before completing this step.'},
+    {title:'Configure the shop workspace',description:'Open the shop admin and tailor the working account.',items:['Confirm the business name and appointment-notification email.','Set weekly appointment hours, time slots, closures, and booking limits.','Review inspection blocks and text-message templates.','Create technician accounts with recovery emails.'],complete:setupStepComplete(shop,'workspace_complete'),key:'workspace_complete',target:'admin'},
+    {title:'Connect and test communications',description:'Finish email and texting before real customers use the site.',items:['Verify the sending domain and connect the Resend API key and sender address.','Connect the shop’s Twilio number and set the incoming-message webhook.','Test owner and technician password recovery.','Create a test appointment, confirm the owner alert and customer confirmation, then send and receive a text.'],complete:setupStepComplete(shop,'communications_complete'),key:'communications_complete'},
+    {title:'Transfer and verify existing data',description:'Move real records only after the empty shop has passed setup checks.',items:['Make a read-only backup of the old system.','Export customers, appointments, and inspections as separate files.','Preview and import one file at a time; fix invalid rows before continuing.','Compare totals and sample records in the shop admin. If there is no old data, mark this step complete without importing.'],complete:shop.migration?.status==='completed'||setupStepComplete(shop,'data_complete'),key:shop.migration?.status==='completed'?null:'data_complete',target:'migrationCenter'},
+    {title:'Run the final launch test',description:'Approve the shop only after the complete customer journey works.',items:['Test public booking, owner login, technician login, inspection delivery, messaging, and password resets.','Confirm the appointment and customer appear only in this shop—not in Tester.','Point the live domain to the new deployment and keep the old system read-only during the handoff.'],complete:setupStepComplete(shop,'launch_complete'),key:'launch_complete'}
+  ];
+}
+function renderOnboarding(shop){
+  const hasDomain=(shop.domains||[]).length>0,steps=onboardingSteps(shop);
+  const completed=steps.filter(step=>step.complete).length;$('setupProgressText').textContent=`${completed} of ${steps.length} complete`;$('setupProgressBar').style.width=`${Math.round(completed/steps.length*100)}%`;
+  let priorComplete=true;
+  $('setupStepList').innerHTML=steps.map((step,index)=>{
+    const locked=!priorComplete&&!step.complete,requiresDomain=step.key==='deployment_complete'&&!hasDomain,disabled=locked||requiresDomain;
+    const status=step.complete?'Complete':locked?'Waiting':'Next step';
+    const action=step.target?`<button class="tiny-button" type="button" data-setup-target="${esc(step.target)}">${step.target==='admin'?'Open shop admin':'Open section'}</button>`:'';
+    const check=step.key?`<label class="setup-check ${disabled?'disabled':''}"><input type="checkbox" data-onboarding-key="${esc(step.key)}" ${step.complete?'checked':''} ${disabled?'disabled':''}> <span>${step.complete?'Completed':'Mark complete'}</span></label>`:'';
+    const tasks=step.items?.length?`<ul>${step.items.map(item=>`<li>${esc(item)}</li>`).join('')}</ul>`:'';
+    const row=`<article class="setup-step ${step.complete?'complete':''} ${locked?'locked':''}"><div class="setup-step-number">${step.complete?'✓':index+1}</div><div class="setup-step-copy"><div><h4>${esc(step.title)}</h4><span>${esc(status)}</span></div><p>${esc(step.description)}</p>${tasks}${step.requirement?`<small>${esc(step.requirement)}</small>`:''}</div><div class="setup-step-actions">${action}${check}</div></article>`;
+    priorComplete=priorComplete&&step.complete;return row;
+  }).join('');
+  document.querySelectorAll('[data-setup-target]').forEach(button=>button.onclick=()=>openSetupTarget(button.dataset.setupTarget));
+  document.querySelectorAll('[data-onboarding-key]').forEach(input=>input.onchange=()=>saveOnboarding(input.dataset.onboardingKey,input.checked,input));
+}
+function openSetupTarget(target){
+  if(target==='admin'){const link=$('openAdminLink');if(!link.classList.contains('hidden'))window.open(link.href,'_blank','noopener');else{toast('Add the shop domain before opening its admin.',true);$('domainsSection').scrollIntoView({behavior:'smooth',block:'start'})}return}
+  $(target)?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function saveOnboarding(key,complete,input){
+  input.disabled=true;
+  try{await api('shop',{method:'PATCH',body:JSON.stringify({id:state.selectedId,[`onboarding_${key}`]:complete})});await load();toast(complete?'Setup step completed':'Setup step reopened')}
+  catch(error){input.checked=!complete;input.disabled=false;showDialogError(error)}
 }
 function renderDetailMetrics(shop){const counts=shop.counts||{};$('detailMetrics').innerHTML=[['Appointments',counts.appointments],['Customers',counts.customers],['Inspections',counts.inspections],['Technicians',counts.technicians]].map(([label,value])=>`<div class="mini-metric"><strong>${number(value)}</strong><span>${label}</span></div>`).join('')}
 function renderDomains(shop){
@@ -193,5 +270,10 @@ for(const eventName of ['dragenter','dragover'])$('fileDrop').addEventListener(e
 for(const eventName of ['dragleave','drop'])$('fileDrop').addEventListener(eventName,event=>{event.preventDefault();$('fileDrop').classList.remove('dragging')});
 $('fileDrop').addEventListener('drop',event=>chooseImportFile(event.dataTransfer?.files?.[0]));
 
-$('loginForm').addEventListener('submit',login);$('logoutButton').addEventListener('click',logout);$('newShopButton').addEventListener('click',()=>{$('createShopError').textContent='';delete $('createShopForm').elements.slug.dataset.edited;$('createShopDialog').showModal()});$('createShopForm').addEventListener('submit',createShop);$('createShopForm').elements.name.addEventListener('input',event=>{const slug=$('createShopForm').elements.slug;if(!slug.dataset.edited)slug.value=slugify(event.target.value)});$('createShopForm').elements.slug.addEventListener('input',event=>event.target.dataset.edited='true');$('closeShopDialog').addEventListener('click',()=>$('shopDialog').close());$('shopDetailsForm').addEventListener('submit',saveShop);$('addDomainForm').addEventListener('submit',addDomain);$('addAdminForm').addEventListener('submit',addAdmin);$('migrationForm').addEventListener('submit',saveMigration);$('shopSearch').addEventListener('input',renderShops);$('statusFilter').addEventListener('change',renderShops);$('menuButton').addEventListener('click',()=>document.body.classList.toggle('menu-open'));$('menuScrim').addEventListener('click',()=>document.body.classList.remove('menu-open'));document.querySelectorAll('.sidebar nav a').forEach(link=>link.addEventListener('click',()=>document.body.classList.remove('menu-open')));
+$('loginForm').addEventListener('submit',login);$('logoutButton').addEventListener('click',logout);$('newShopButton').addEventListener('click',()=>{resetCreateShop();$('createShopDialog').showModal()});$('createShopForm').addEventListener('submit',createShop);$('createShopNext').addEventListener('click',nextCreateStep);$('createShopBack').addEventListener('click',previousCreateStep);
+createShopFields().name.addEventListener('input',event=>{const fields=createShopFields();if(!fields.slug.dataset.edited){fields.slug.value=slugify(event.target.value);if(!fields.admin_username.dataset.edited)fields.admin_username.value=fields.slug.value.replaceAll('-','').slice(0,40)}});
+createShopFields().slug.addEventListener('input',event=>{event.target.dataset.edited='true';const username=createShopFields().admin_username;if(!username.dataset.edited)username.value=event.target.value.replaceAll('-','').slice(0,40)});
+createShopFields().contact_name.addEventListener('input',event=>{const adminName=createShopFields().admin_name;if(!adminName.dataset.edited)adminName.value=event.target.value});createShopFields().admin_name.addEventListener('input',event=>event.target.dataset.edited='true');
+createShopFields().contact_email.addEventListener('input',event=>{const fields=createShopFields();for(const name of ['notification_email','admin_email'])if(!fields[name].dataset.edited)fields[name].value=event.target.value});createShopFields().notification_email.addEventListener('input',event=>event.target.dataset.edited='true');createShopFields().admin_email.addEventListener('input',event=>event.target.dataset.edited='true');createShopFields().admin_username.addEventListener('input',event=>event.target.dataset.edited='true');
+$('closeShopDialog').addEventListener('click',()=>$('shopDialog').close());$('shopDetailsForm').addEventListener('submit',saveShop);$('addDomainForm').addEventListener('submit',addDomain);$('addAdminForm').addEventListener('submit',addAdmin);$('migrationForm').addEventListener('submit',saveMigration);$('shopSearch').addEventListener('input',renderShops);$('statusFilter').addEventListener('change',renderShops);$('menuButton').addEventListener('click',()=>document.body.classList.toggle('menu-open'));$('menuScrim').addEventListener('click',()=>document.body.classList.remove('menu-open'));document.querySelectorAll('.sidebar nav a').forEach(link=>link.addEventListener('click',()=>document.body.classList.remove('menu-open')));
 load().catch(error=>{if(!/session|Unauthorized/i.test(error.message))$('loginError').textContent=error.message;showLogin()});

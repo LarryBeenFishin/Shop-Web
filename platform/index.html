@@ -73,36 +73,74 @@
   <div class="scrim" id="menuScrim"></div>
 
   <dialog id="createShopDialog" class="modal">
-    <form method="dialog" class="modal-card" id="createShopForm">
-      <div class="modal-head"><div><div class="eyebrow">New account</div><h2>Add a shop</h2><p>Create the shop, its first domain, and its first admin.</p></div><button class="icon-button" value="cancel" aria-label="Close">×</button></div>
-      <div class="form-section"><h3>Shop details</h3><div class="form-grid">
-        <label>Business name<input name="name" required placeholder="Smith Auto Repair"></label>
-        <label>Shop slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="smith-auto"></label>
-        <label>Timezone<select name="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option></select></label>
-        <label>Primary domain<input name="primary_domain" placeholder="smithauto.com"></label>
-      </div></div>
-      <div class="form-section"><h3>Primary contact</h3><div class="form-grid three">
-        <label>Name<input name="contact_name" placeholder="Shop owner"></label>
-        <label>Email<input name="contact_email" type="email" placeholder="owner@shop.com"></label>
-        <label>Phone<input name="contact_phone" type="tel" placeholder="(555) 555-5555"></label>
-      </div></div>
-      <div class="form-section"><h3>First admin account</h3><div class="form-grid three">
-        <label>Name<input name="admin_name" placeholder="Shop administrator"></label>
-        <label>Username<input name="admin_username" autocomplete="off" placeholder="smithadmin"></label>
-        <label>Recovery email<input name="admin_email" type="email" autocomplete="email" placeholder="owner@example.com"></label>
-        <label>Temporary password<input name="admin_password" type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"></label>
-      </div></div>
-      <div class="dialog-error" id="createShopError" role="alert"></div>
-      <div class="modal-actions"><button class="secondary" value="cancel">Cancel</button><button class="primary" id="createShopSubmit" type="submit">Create shop</button></div>
+    <form method="dialog" class="modal-card onboarding-modal" id="createShopForm">
+      <div class="modal-head"><div><div class="eyebrow">New customer setup</div><h2>Add a shop</h2><p>Follow each step in order. The launch checklist continues after the shop is created.</p></div><button class="icon-button" value="cancel" formnovalidate aria-label="Close">×</button></div>
+      <ol class="wizard-progress" id="createShopProgress" aria-label="Shop setup progress">
+        <li class="active"><span>1</span><small>Business</small></li>
+        <li><span>2</span><small>Contact</small></li>
+        <li><span>3</span><small>Website</small></li>
+        <li><span>4</span><small>Owner login</small></li>
+        <li><span>5</span><small>Review</small></li>
+      </ol>
+
+      <div class="wizard-step active" data-create-step="0">
+        <div class="wizard-step-copy"><span>Step 1 of 5</span><h3>Business identity</h3><p>Start with the information that identifies this customer throughout the platform.</p></div>
+        <div class="form-grid">
+          <label>Business name<input name="name" required placeholder="Smith Auto Repair" autocomplete="organization"></label>
+          <label>Shop slug<input name="slug" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="smith-auto" aria-describedby="slugHelp"><small id="slugHelp">Used to connect the correct shop to its deployment. It must be unique.</small></label>
+          <label>Timezone<select name="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option></select></label>
+        </div>
+      </div>
+
+      <div class="wizard-step" data-create-step="1" hidden>
+        <div class="wizard-step-copy"><span>Step 2 of 5</span><h3>Primary contact</h3><p>Save the person your team should contact and the inbox that should receive appointment alerts.</p></div>
+        <div class="form-grid">
+          <label>Owner or primary contact<input name="contact_name" required placeholder="Shop owner" autocomplete="name"></label>
+          <label>Contact email<input name="contact_email" required type="email" placeholder="owner@shop.com" autocomplete="email"></label>
+          <label>Contact phone<input name="contact_phone" required type="tel" placeholder="(555) 555-5555" autocomplete="tel"></label>
+          <label>Appointment notification email<input name="notification_email" required type="email" placeholder="service@shop.com"><small>New appointment alerts will be sent here after email is connected.</small></label>
+        </div>
+      </div>
+
+      <div class="wizard-step" data-create-step="2" hidden>
+        <div class="wizard-step-copy"><span>Step 3 of 5</span><h3>Website and domain</h3><p>Add the address customers will use. You can continue if the domain has not been chosen yet.</p></div>
+        <div class="form-grid single">
+          <label>Primary domain <em>Optional for now</em><input name="primary_domain" placeholder="smithauto.com" inputmode="url"><small>Enter only the domain—no https:// or page path. Add it later from the shop workspace if it is not ready.</small></label>
+        </div>
+        <div class="wizard-note"><strong>After creation:</strong> the setup guide will show how to create the Vercel deployment, add the shop slug, and connect this domain.</div>
+      </div>
+
+      <div class="wizard-step" data-create-step="3" hidden>
+        <div class="wizard-step-copy"><span>Step 4 of 5</span><h3>First owner login</h3><p>Create the account the shop owner will use. The recovery email is required for forgotten passwords.</p></div>
+        <div class="form-grid">
+          <label>Account holder name<input name="admin_name" required placeholder="Shop owner" autocomplete="name"></label>
+          <label>Username<input name="admin_username" required autocomplete="off" pattern="[A-Za-z0-9._-]{3,40}" placeholder="smithadmin"><small>3–40 letters, numbers, periods, dashes, or underscores.</small></label>
+          <label>Recovery email<input name="admin_email" required type="email" autocomplete="email" placeholder="owner@shop.com"></label>
+          <label>Temporary password<input name="admin_password" required type="password" autocomplete="new-password" minlength="8" placeholder="At least 8 characters"><small>Give this to the owner securely. They can reset it from the sign-in page.</small></label>
+        </div>
+      </div>
+
+      <div class="wizard-step" data-create-step="4" hidden>
+        <div class="wizard-step-copy"><span>Step 5 of 5</span><h3>Review before creating</h3><p>Confirm this information belongs to the correct shop. Nothing from Tester will be copied or changed.</p></div>
+        <div class="setup-review" id="createShopReview"></div>
+        <label class="confirm-check create-confirm"><input id="createShopConfirm" type="checkbox" required> I reviewed the shop, contact, domain, and owner login information.</label>
+      </div>
+
+      <div class="dialog-error" id="createShopError" role="alert" aria-live="polite"></div>
+      <div class="modal-actions wizard-actions"><button class="secondary" id="createShopCancel" value="cancel" formnovalidate>Cancel</button><div><button class="secondary hidden" id="createShopBack" type="button">Back</button><button class="primary" id="createShopNext" type="button">Continue</button><button class="primary hidden" id="createShopSubmit" type="submit">Create shop</button></div></div>
     </form>
   </dialog>
 
   <dialog id="shopDialog" class="modal shop-modal">
     <div class="modal-card">
       <div class="modal-head"><div><div class="eyebrow">Shop workspace</div><h2 id="detailTitle">Shop</h2><p id="detailSubtitle"></p></div><button class="icon-button" id="closeShopDialog" aria-label="Close">×</button></div>
+      <section class="onboarding-guide" id="onboardingGuide">
+        <div class="setup-guide-head"><div><div class="eyebrow">Customer onboarding</div><h3>Setup and launch guide</h3><p>Complete these steps from top to bottom. Progress is saved with this shop.</p></div><div class="setup-progress"><strong id="setupProgressText">0 of 7 complete</strong><div><span id="setupProgressBar"></span></div></div></div>
+        <div class="setup-step-list" id="setupStepList"></div>
+      </section>
       <div class="detail-layout">
         <div class="detail-main">
-          <section class="form-section"><div class="section-heading"><div><h3>Shop details</h3><p>Business identity, contact information, and account status.</p></div><span class="status-badge" id="detailStatus"></span></div><form id="shopDetailsForm"><div class="form-grid">
+          <section class="form-section" id="shopDetailsSection"><div class="section-heading"><div><h3>Shop details</h3><p>Business identity, contact information, and account status.</p></div><span class="status-badge" id="detailStatus"></span></div><form id="shopDetailsForm"><div class="form-grid">
             <label>Business name<input name="name" required></label>
             <label>Shop slug<input name="slug" required></label>
             <label>Timezone<select name="timezone"><option>America/Chicago</option><option>America/New_York</option><option>America/Denver</option><option>America/Los_Angeles</option><option>America/Phoenix</option></select></label>
@@ -113,9 +151,9 @@
             <label>Contact phone<input name="contact_phone" type="tel"></label>
           </div><div class="inline-actions"><button class="primary" type="submit">Save details</button></div></form></section>
 
-          <section class="form-section"><div class="section-heading"><div><h3>Website and domains</h3><p>A mapped domain tells the platform which shop website to load.</p></div></div><div class="website-actions"><a class="primary button-link" id="openWebsiteLink" target="_blank" rel="noopener">Open website ↗</a><a class="secondary button-link" id="openAdminLink" target="_blank" rel="noopener">Open shop admin ↗</a></div><label>Logo URL<input id="detailLogoUrl" form="shopDetailsForm" name="logo_url" type="url" placeholder="https://..."></label><div id="domainList" class="managed-list"></div><form id="addDomainForm" class="inline-form"><input name="hostname" placeholder="shopdomain.com" required><label class="check"><input type="checkbox" name="is_primary"> Primary</label><button class="secondary" type="submit">Add domain</button></form></section>
+          <section class="form-section" id="domainsSection"><div class="section-heading"><div><h3>Website and domains</h3><p>A mapped domain tells the platform which shop website to load.</p></div></div><div class="website-actions"><a class="primary button-link" id="openWebsiteLink" target="_blank" rel="noopener">Open website ↗</a><a class="secondary button-link" id="openAdminLink" target="_blank" rel="noopener">Open shop admin ↗</a></div><label>Logo URL<input id="detailLogoUrl" form="shopDetailsForm" name="logo_url" type="url" placeholder="https://..."></label><div id="domainList" class="managed-list"></div><form id="addDomainForm" class="inline-form"><input name="hostname" placeholder="shopdomain.com" required><label class="check"><input type="checkbox" name="is_primary"> Primary</label><button class="secondary" type="submit">Add domain</button></form></section>
 
-          <section class="form-section"><div class="section-heading"><div><h3>Shop administrators</h3><p>Each administrator is limited to this shop. Recovery links are sent to the email saved on the account.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" autocomplete="name" required><input name="username" placeholder="Username" autocomplete="off" required><input name="email" type="email" placeholder="Recovery email" autocomplete="email" required><input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Temporary password" required><button class="secondary" id="addAdminSubmit" type="submit">Add admin</button></form><p class="form-help">The administrator can use “Forgot password?” on the shop sign-in page.</p></section>
+          <section class="form-section" id="adminsSection"><div class="section-heading"><div><h3>Shop administrators</h3><p>Each administrator is limited to this shop. Recovery links are sent to the email saved on the account.</p></div></div><div id="adminList" class="managed-list"></div><form id="addAdminForm" class="inline-form admin-form"><input name="name" placeholder="Name" autocomplete="name" required><input name="username" placeholder="Username" autocomplete="off" required><input name="email" type="email" placeholder="Recovery email" autocomplete="email" required><input name="password" type="password" minlength="8" autocomplete="new-password" placeholder="Temporary password" required><button class="secondary" id="addAdminSubmit" type="submit">Add admin</button></form><p class="form-help">The administrator can use “Forgot password?” on the shop sign-in page.</p></section>
         </div>
 
         <aside class="detail-side">
@@ -124,7 +162,7 @@
         </aside>
       </div>
 
-      <section class="migration-center">
+      <section class="migration-center" id="migrationCenter">
         <div class="section-heading migration-heading"><div><div class="eyebrow">Safe migration center</div><h3>Preview the old data before anything is written</h3><p>Upload one export at a time. The portal checks required fields and duplicates, then waits for your confirmation.</p></div><span class="setup-pill hidden" id="importSetupWarning">Database setup required</span></div>
         <div class="migration-grid">
           <div class="import-card">
