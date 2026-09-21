@@ -294,6 +294,17 @@ module.exports=async function handler(req,res){
       return json(res,200,{status:'success',events:data||[]});
     }
 
+    if(req.method==='GET' && action==='live-updates'){
+      if(!shop.id)return json(res,200,{status:'success',events:[],cursor:new Date().toISOString()});
+      const rawSince=s(req.query.since,80),since=rawSince&&!Number.isNaN(Date.parse(rawSince))?rawSince:'';
+      let q=supabase.from('audit_events').select('id,actor,action,entity_type,entity_id,metadata,created_at').eq('shop_id',shop.id);
+      if(since)q=q.gte('created_at',since).order('created_at',{ascending:true}).limit(100);
+      else q=q.order('created_at',{ascending:false}).limit(1);
+      const {data,error}=await q;if(error)throw error;
+      const events=data||[],latest=events.reduce((value,event)=>String(event.created_at||'')>value?String(event.created_at):value,'');
+      return json(res,200,{status:'success',events,cursor:latest||new Date().toISOString()});
+    }
+
     if(req.method==='POST' && action==='appointment'){
       const body=req.body||{};
       const name=s(body.name,120),phone=s(body.phone,40),date=s(body.appointment_date||body.preferred_date_raw,10),time=s(body.appointment_time||body.preferred_time,30);

@@ -38,7 +38,7 @@ module.exports=async function handler(req,res){
         status:String(body.SmsStatus||'received')
       },shop);
       await supabase.from('sms_messages').insert(row);
-      await auditEvent(supabase,shop.id,'sms.received','sms',row.provider_sid,{from:phone});
+      await auditEvent(supabase,shop.id,'sms.received','sms',row.provider_sid,{from:phone,customer:customerName,message:message.slice(0,160)});
       await sendShopPush(supabase,shop,{
         title:`New text — ${shop.name}`,
         body:`${customerName||phone}: ${message.slice(0,120)}`,

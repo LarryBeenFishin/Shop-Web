@@ -19,7 +19,7 @@ const ADMIN_ASSET_LOADER = `
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
   css('data-shop-admin-skin','/admin/admin-redesign.css?v=7');
   css('data-shop-status-skin','/admin/status-hidden.css?v=1');
-  js('data-shop-shared-header','/admin/shared-header.js?v=15');
+  js('data-shop-shared-header','/admin/shared-header.js?v=16');
   js('data-shop-vehicle-data','/assets/vehicle-data.js?v=1');
   js('data-shop-appt-modal','/admin/appointment-modal-redesign.js?v=5');
   js('data-shop-new-appt','/admin/new-appointment-enhancements.js?v=2');

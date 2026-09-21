@@ -162,7 +162,7 @@ module.exports = async function handler(req, res) {
       throw error;
     }
 
-    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',customer_id:data.customer_id||null,service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
+    await auditEvent(supabase,shop.id,'appointment.created','appointment',data.id,{source:'website',customer_id:data.customer_id||null,customer:data.name,phone:data.phone,service:data.service,date:data.appointment_date,time:data.appointment_time},'customer');
 
     if(shop.id){
       const requestNotes=[data.service?`Service: ${data.service}`:'',data.message?`Customer concern: ${data.message}`:''].filter(Boolean).join('\n')||null;
