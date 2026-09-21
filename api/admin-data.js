@@ -16,6 +16,15 @@ function validUsername(value){return /^[a-z0-9._-]{3,40}$/.test(value)}
 function inspectionItems(value){return arr(value).slice(0,100).map((x,i)=>({id:s(x?.id||`item-${i+1}`,100),title:s(x?.title,160),status:INSPECTION_STATUSES.has(x?.status)?x.status:'Monitor',notes:s(x?.notes,3000)})).filter(x=>x.title)}
 function inspectionTemplate(config){const blocks=uniqueTextList(config?.inspectionBlocks,50,120);return blocks.length?blocks:[...DEFAULT_INSPECTION_BLOCKS]}
 function derivedInspectionStatus(items){return items.some(item=>item.status==='Needs Attention')?'Needs Attention':items.some(item=>item.status==='Monitor')?'Monitor':'Good'}
+function normalizeMessageTemplates(value){return arr(value).slice(0,100).map((item,index)=>({id:(s(item?.id,80).replace(/[^a-zA-Z0-9_-]/g,'')||`template-${index+1}`),name:s(item?.name,100),message:s(item?.message,1600)})).filter(item=>item.name&&item.message)}
+function defaultMessageTemplates(shopName){const name=s(shopName,120)||'our shop';return[
+  {id:'appointment-confirmed',name:'Appointment Confirmed',message:`Hi, this is ${name}. Your appointment has been confirmed. Reply here if you have any questions.`},
+  {id:'inspection-ready',name:'Inspection Ready',message:`Hi, this is ${name}. Your vehicle inspection is ready. Please review it when you have a chance.`},
+  {id:'vehicle-ready',name:'Vehicle Ready',message:`Hi, this is ${name}. Your vehicle is ready for pickup. Thank you!`},
+  {id:'estimate-follow-up',name:'Estimate Follow-Up',message:`Hi, this is ${name}. Just checking in to see if you had any questions about your estimate.`},
+  {id:'review-request',name:'Review Request',message:`Thank you for choosing ${name}. If you had a great experience, we would really appreciate a Google review.`}
+]}
+function messageTemplates(config,shopName){return Array.isArray(config?.messageTemplates)?normalizeMessageTemplates(config.messageTemplates):defaultMessageTemplates(shopName)}
 function addInspectionLegacy(row,items){for(const key of ['brakes','tires','suspension','fluids','battery','lights','wipers','filters','leaks']){const match=items.find(item=>item.title.toLowerCase()===key);row[`${key}_status`]=match?.status||null;row[`${key}_notes`]=match?.notes||null}return row}
 async function technicianIdForName(supabase,shopId,name){if(!shopId||!name)return null;const {data,error}=await supabase.from('technician_accounts').select('id').eq('shop_id',shopId).eq('active',true).eq('name',name).limit(1);if(error){if(missingTable(error,'technician_accounts'))return null;throw error}return data?.[0]?.id||null}
 function timeKey(v){
@@ -69,6 +78,27 @@ module.exports=async function handler(req,res){
       clearShopCache(shop);
       await auditEvent(supabase,shop.id,'inspection.template.updated','shop',shop.id,{inspection_blocks:inspectionBlocks});
       return json(res,200,{status:'success',inspectionBlocks});
+    }
+
+    if(req.method==='GET' && action==='message-templates'){
+      if(!shop.id)return json(res,200,{status:'success',templates:defaultMessageTemplates(shop.name)});
+      const {data,error}=await supabase.from('shops').select('name,public_config').eq('id',shop.id).maybeSingle();
+      if(error)throw error;
+      return json(res,200,{status:'success',templates:messageTemplates(data?.public_config||shop.public_config,data?.name||shop.name)});
+    }
+
+    if(req.method==='PUT' && action==='message-templates'){
+      if(!shop.id)return json(res,400,{error:'Multi-shop setup is required before text templates can be saved'});
+      const templates=normalizeMessageTemplates(req.body?.templates);
+      if(arr(req.body?.templates).length!==templates.length)return json(res,400,{error:'Every template needs a name and message'});
+      const {data:current,error:findError}=await supabase.from('shops').select('public_config').eq('id',shop.id).maybeSingle();
+      if(findError)throw findError;
+      const publicConfig={...(current?.public_config||shop.public_config||{}),messageTemplates:templates};
+      const {error}=await supabase.from('shops').update({public_config:publicConfig,updated_at:new Date().toISOString()}).eq('id',shop.id);
+      if(error)throw error;
+      clearShopCache(shop);
+      await auditEvent(supabase,shop.id,'sms.templates.updated','shop',shop.id,{template_count:templates.length});
+      return json(res,200,{status:'success',templates});
     }
 
     if(req.method==='POST' && action==='technician'){
