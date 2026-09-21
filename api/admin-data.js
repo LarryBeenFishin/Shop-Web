@@ -5,6 +5,7 @@ const { loadAvailability, saveAvailability } = require('./_availability');
 
 const APPT_STATUSES=['pending','new','confirmed','checked-in','in-progress','waiting-approval','completed','cancelled'];
 const INSPECTION_STATUSES=new Set(['Good','Monitor','Needs Attention']);
+const DEFAULT_INSPECTION_BLOCKS=['DASHBOARD LIGHTS','BATTERY','LIGHTS','STEERING AND SUSPENSION','BRAKES','TIRES','FLUIDS','FILTERS / BELTS'];
 function json(res,code,data){return res.status(code).json(data)}
 function s(v,n=3000){return String(v??'').trim().slice(0,n)}
 function bool(v){return v===true||String(v).toLowerCase()==='true'||String(v).toLowerCase()==='yes'}
@@ -13,6 +14,8 @@ function uniqueTextList(value,maxItems=50,maxLength=120){const out=[],seen=new S
 function safeTechnician(row){return row?{id:row.id,name:row.name,username:row.username,active:row.active!==false}:null}
 function validUsername(value){return /^[a-z0-9._-]{3,40}$/.test(value)}
 function inspectionItems(value){return arr(value).slice(0,100).map((x,i)=>({id:s(x?.id||`item-${i+1}`,100),title:s(x?.title,160),status:INSPECTION_STATUSES.has(x?.status)?x.status:'Monitor',notes:s(x?.notes,3000)})).filter(x=>x.title)}
+function inspectionTemplate(config){const blocks=uniqueTextList(config?.inspectionBlocks,50,120);return blocks.length?blocks:[...DEFAULT_INSPECTION_BLOCKS]}
+function derivedInspectionStatus(items){return items.some(item=>item.status==='Needs Attention')?'Needs Attention':items.some(item=>item.status==='Monitor')?'Monitor':'Good'}
 function addInspectionLegacy(row,items){for(const key of ['brakes','tires','suspension','fluids','battery','lights','wipers','filters','leaks']){const match=items.find(item=>item.title.toLowerCase()===key);row[`${key}_status`]=match?.status||null;row[`${key}_notes`]=match?.notes||null}return row}
 async function technicianIdForName(supabase,shopId,name){if(!shopId||!name)return null;const {data,error}=await supabase.from('technician_accounts').select('id').eq('shop_id',shopId).eq('active',true).eq('name',name).limit(1);if(error){if(missingTable(error,'technician_accounts'))return null;throw error}return data?.[0]?.id||null}
 function timeKey(v){
@@ -30,7 +33,7 @@ module.exports=async function handler(req,res){
 
   try{
     if(req.method==='GET' && action==='shop-settings'){
-      if(!shop.id)return json(res,200,{status:'success',shop:{name:shop.name,technicians:[]}});
+      if(!shop.id)return json(res,200,{status:'success',shop:{name:shop.name,technicians:[],inspectionBlocks:[...DEFAULT_INSPECTION_BLOCKS]}});
       const {data,error}=await supabase.from('shops').select('name,public_config').eq('id',shop.id).maybeSingle();
       if(error)throw error;
       const config=data?.public_config||shop.public_config||{};
@@ -40,7 +43,7 @@ module.exports=async function handler(req,res){
         if(!missingTable(accountError,'technician_accounts'))throw accountError;
         technicians=uniqueTextList(config?.staff?.technicians).map(name=>({id:null,name,username:'',active:true,legacy:true}));
       }else technicians=(accounts||[]).map(safeTechnician);
-      return json(res,200,{status:'success',shop:{name:data?.name||shop.name,technicians}});
+      return json(res,200,{status:'success',shop:{name:data?.name||shop.name,technicians,inspectionBlocks:inspectionTemplate(config)}});
     }
 
     if(req.method==='PUT' && action==='shop-settings'){
@@ -52,6 +55,20 @@ module.exports=async function handler(req,res){
       clearShopCache(shop);
       await auditEvent(supabase,shop.id,'shop.settings.updated','shop',shop.id,{name});
       return json(res,200,{status:'success',shop:{name:data.name}});
+    }
+
+    if(req.method==='PUT' && action==='inspection-template'){
+      if(!shop.id)return json(res,400,{error:'Multi-shop setup is required before inspection blocks can be saved'});
+      const inspectionBlocks=uniqueTextList(req.body?.inspectionBlocks,50,120);
+      if(!inspectionBlocks.length)return json(res,400,{error:'Keep at least one inspection block'});
+      const {data:current,error:findError}=await supabase.from('shops').select('public_config').eq('id',shop.id).maybeSingle();
+      if(findError)throw findError;
+      const publicConfig={...(current?.public_config||shop.public_config||{}),inspectionBlocks};
+      const {error}=await supabase.from('shops').update({public_config:publicConfig,updated_at:new Date().toISOString()}).eq('id',shop.id);
+      if(error)throw error;
+      clearShopCache(shop);
+      await auditEvent(supabase,shop.id,'inspection.template.updated','shop',shop.id,{inspection_blocks:inspectionBlocks});
+      return json(res,200,{status:'success',inspectionBlocks});
     }
 
     if(req.method==='POST' && action==='technician'){
@@ -311,16 +328,15 @@ module.exports=async function handler(req,res){
 
     if(req.method==='POST' && action==='inspection'){
       const b=req.body||{};
-      const name=s(b.customer_name||b.customerName,120),phone=s(b.phone,40),year=s(b.year,10),make=s(b.make,80),model=s(b.model,100);
-      const vehicleText=s(b.vehicle,300)||[year,make,model].filter(Boolean).join(' ');
-      if(!name||!phone||!vehicleText)return json(res,400,{error:'Customer name, phone and vehicle are required'});
-      const customer=await upsertCustomer(supabase,{name,phone,email:b.email,vehicle:vehicleText,mileage:b.mileage},shop.id).catch(()=>null);
+      const suppliedName=s(b.customer_name||b.customerName,120),phone=s(b.phone,40),year=s(b.year,10),make=s(b.make,80),model=s(b.model,100),name=suppliedName||'Customer not provided';
+      const vehicleText=s(b.vehicle,300)||[year,make,model].filter(Boolean).join(' ')||'Vehicle not provided';
+      const customer=suppliedName&&phone?await upsertCustomer(supabase,{name:suppliedName,phone,email:b.email,vehicle:vehicleText==='Vehicle not provided'?null:vehicleText,mileage:b.mileage},shop.id).catch(()=>null):null;
       const vehicle=customer?.id&&year&&make&&model?await upsertCustomerVehicle(supabase,{year,make,model,mileage:b.mileage,vehicle_id:b.vehicle_id},shop.id,customer.id).catch(()=>null):null;
       const items=inspectionItems(b.inspection_items||b.inspectionItems),technicianName=s(b.technician,120),technicianId=await technicianIdForName(supabase,shop.id,technicianName);
       if(!items.length)return json(res,400,{error:'Add at least one inspection block'});
       const row=addInspectionLegacy(withShopId({
-        customer_id:customer?.id||null,vehicle_id:vehicle?.id||s(b.vehicle_id,80)||null,customer_name:name,phone,email:s(b.email,200)||null,vehicle:vehicleText,
-        mileage:s(b.mileage,50)||null,technician:technicianName||null,technician_id:technicianId,overall_status:INSPECTION_STATUSES.has(b.overall_status||b.overallStatus)?(b.overall_status||b.overallStatus):'Monitor',recommendations:s(b.recommendations,5000)||null,inspection_items:items
+        customer_id:customer?.id||null,vehicle_id:vehicle?.id||s(b.vehicle_id,80)||null,customer_name:name,phone:phone||null,email:s(b.email,200)||null,vehicle:vehicleText,
+        mileage:s(b.mileage,50)||null,technician:technicianName||null,technician_id:technicianId,overall_status:derivedInspectionStatus(items),recommendations:s(b.recommendations,5000)||null,inspection_items:items
       },shop),items);
       const {data,error}=await supabase.from('inspections').insert(row).select('*').single();if(error)throw error;
       await auditEvent(supabase,shop.id,'inspection.created','inspection',data.id,{customer:data.customer_name,vehicle:data.vehicle,status:data.overall_status});
@@ -328,12 +344,12 @@ module.exports=async function handler(req,res){
     }
 
     if(req.method==='PATCH' && action==='inspection'){
-      const b=req.body||{},id=s(b.id,80),name=s(b.customer_name||b.customerName,120),phone=s(b.phone,40),year=s(b.year,10),make=s(b.make,80),model=s(b.model,100),vehicleText=s(b.vehicle,300)||[year,make,model].filter(Boolean).join(' '),items=inspectionItems(b.inspection_items||b.inspectionItems);
-      if(!id)return json(res,400,{error:'Missing inspection id'});if(!name||!phone||!vehicleText)return json(res,400,{error:'Customer name, phone and vehicle are required'});if(!items.length)return json(res,400,{error:'Add at least one inspection block'});
-      const customer=await upsertCustomer(supabase,{name,phone,email:b.email,vehicle:vehicleText,mileage:b.mileage},shop.id).catch(()=>null);
+      const b=req.body||{},id=s(b.id,80),suppliedName=s(b.customer_name||b.customerName,120),name=suppliedName||'Customer not provided',phone=s(b.phone,40),year=s(b.year,10),make=s(b.make,80),model=s(b.model,100),vehicleText=s(b.vehicle,300)||[year,make,model].filter(Boolean).join(' ')||'Vehicle not provided',items=inspectionItems(b.inspection_items||b.inspectionItems);
+      if(!id)return json(res,400,{error:'Missing inspection id'});if(!items.length)return json(res,400,{error:'Add at least one inspection block'});
+      const customer=suppliedName&&phone?await upsertCustomer(supabase,{name:suppliedName,phone,email:b.email,vehicle:vehicleText==='Vehicle not provided'?null:vehicleText,mileage:b.mileage},shop.id).catch(()=>null):null;
       const vehicle=customer?.id&&year&&make&&model?await upsertCustomerVehicle(supabase,{year,make,model,mileage:b.mileage,vehicle_id:b.vehicle_id},shop.id,customer.id).catch(()=>null):null;
       const technicianName=s(b.technician,120),technicianId=await technicianIdForName(supabase,shop.id,technicianName);
-      const patch=addInspectionLegacy({customer_id:customer?.id||null,vehicle_id:vehicle?.id||s(b.vehicle_id,80)||null,customer_name:name,phone,email:s(b.email,200)||null,vehicle:vehicleText,mileage:s(b.mileage,50)||null,technician:technicianName||null,technician_id:technicianId,overall_status:INSPECTION_STATUSES.has(b.overall_status||b.overallStatus)?(b.overall_status||b.overallStatus):'Monitor',recommendations:s(b.recommendations,5000)||null,inspection_items:items},items);
+      const patch=addInspectionLegacy({customer_id:customer?.id||null,vehicle_id:vehicle?.id||s(b.vehicle_id,80)||null,customer_name:name,phone:phone||null,email:s(b.email,200)||null,vehicle:vehicleText,mileage:s(b.mileage,50)||null,technician:technicianName||null,technician_id:technicianId,overall_status:derivedInspectionStatus(items),recommendations:s(b.recommendations,5000)||null,inspection_items:items},items);
       let update=supabase.from('inspections').update(patch).eq('id',id);update=applyShopScope(update,shop);
       const {data,error}=await update.select('*').maybeSingle();if(error)throw error;if(!data)return json(res,404,{error:'Inspection not found'});
       await auditEvent(supabase,shop.id,'inspection.updated','inspection',data.id,{customer:data.customer_name,vehicle:data.vehicle,status:data.overall_status,block_count:items.length});

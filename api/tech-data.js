@@ -3,10 +3,13 @@ const { db, auditEvent, upsertCustomer, upsertCustomerVehicle, normalizePhone } 
 const { resolveShop, withShopId } = require('./_tenant');
 
 const ITEM_STATUSES=new Set(['Good','Monitor','Needs Attention']);
+const DEFAULT_INSPECTION_BLOCKS=['DASHBOARD LIGHTS','BATTERY','LIGHTS','STEERING AND SUSPENSION','BRAKES','TIRES','FLUIDS','FILTERS / BELTS'];
 function clean(v,n=3000){return String(v??'').trim().slice(0,n)}
 function json(res,code,data){return res.status(code).json(data)}
 function normalizeItems(value){return(Array.isArray(value)?value:[]).slice(0,50).map((item,index)=>({id:clean(item?.id,80)||`item-${index+1}`,title:clean(item?.title,120),status:ITEM_STATUSES.has(item?.status)?item.status:'Monitor',notes:clean(item?.notes,3000)})).filter(item=>item.title)}
 function status(value){return ITEM_STATUSES.has(value)?value:'Monitor'}
+function derivedStatus(items){return items.some(item=>item.status==='Needs Attention')?'Needs Attention':items.some(item=>item.status==='Monitor')?'Monitor':'Good'}
+function inspectionTemplate(config){const value=Array.isArray(config?.inspectionBlocks)?config.inspectionBlocks:[],out=[],seen=new Set();for(const item of value){const title=clean(item,120),key=title.toLowerCase();if(!title||seen.has(key))continue;seen.add(key);out.push(title);if(out.length>=50)break}return out.length?out:[...DEFAULT_INSPECTION_BLOCKS]}
 function addLegacyFields(row,items){for(const key of ['brakes','tires','suspension','fluids','battery','lights','wipers','filters','leaks']){const match=items.find(item=>item.title.toLowerCase()===key);row[`${key}_status`]=match?.status||null;row[`${key}_notes`]=match?.notes||null;}return row}
 
 module.exports=async function handler(req,res){
@@ -23,13 +26,13 @@ module.exports=async function handler(req,res){
       let query=supabase.from('inspection_requests').select('*').eq('shop_id',shop.id).or(`technician_id.is.null,technician_id.eq.${technician.id}`).order('created_at',{ascending:false}).limit(200);
       if(action==='requests')query=req.query.status?query.eq('status',clean(req.query.status,30)):query.in('status',['requested','in_progress']);
       const {data,error}=await query;if(error)throw error;
-      return json(res,200,{status:'success',shop:{name:shop.name},technician,requests:data||[]});
+      return json(res,200,{status:'success',shop:{name:shop.name,inspectionBlocks:inspectionTemplate(shop.public_config)},technician,requests:data||[]});
     }
 
     if(req.method==='GET'&&action==='inspections'){
       const {data,error}=await supabase.from('inspections').select('*').eq('shop_id',shop.id).order('created_at',{ascending:false}).limit(1000);
       if(error)throw error;
-      return json(res,200,{status:'success',shop:{name:shop.name},technician,inspections:(data||[]).map(item=>({...item,can_edit:item.technician_id===technician.id||(!item.technician_id&&clean(item.technician,120).toLowerCase()===technician.name.toLowerCase())}))});
+      return json(res,200,{status:'success',shop:{name:shop.name,inspectionBlocks:inspectionTemplate(shop.public_config)},technician,inspections:(data||[]).map(item=>({...item,can_edit:item.technician_id===technician.id||(!item.technician_id&&clean(item.technician,120).toLowerCase()===technician.name.toLowerCase())}))});
     }
 
     if(req.method==='GET'&&action==='customer-lookup'){
@@ -66,13 +69,12 @@ module.exports=async function handler(req,res){
         if(request.status==='completed')return json(res,409,{error:'This inspection request is already completed'});
         if(request.status==='cancelled')return json(res,409,{error:'This inspection request was cancelled'});
       }else{
-        const name=clean(req.body?.customer_name||req.body?.customerName,120),phone=clean(req.body?.phone,40),year=clean(req.body?.year,10),make=clean(req.body?.make,80),model=clean(req.body?.model,100);
-        if(!name||!phone||!year||!make||!model)return json(res,400,{error:'Customer name, phone, year, make, and model are required'});
-        customer=await upsertCustomer(supabase,{name,phone,email:req.body?.email,vehicle:[year,make,model].join(' '),mileage:req.body?.mileage},shop.id);
-        vehicle=await upsertCustomerVehicle(supabase,{year,make,model,mileage:req.body?.mileage,vehicle_id:req.body?.vehicle_id},shop.id,customer.id);
+        const name=clean(req.body?.customer_name||req.body?.customerName,120),phone=clean(req.body?.phone,40),year=clean(req.body?.year,10),make=clean(req.body?.make,80),model=clean(req.body?.model,100),vehicleDescription=[year,make,model].filter(Boolean).join(' ');
+        if(name&&phone)customer=await upsertCustomer(supabase,{name,phone,email:req.body?.email,vehicle:vehicleDescription||null,mileage:req.body?.mileage},shop.id);
+        if(customer?.id&&year&&make&&model)vehicle=await upsertCustomerVehicle(supabase,{year,make,model,mileage:req.body?.mileage,vehicle_id:req.body?.vehicle_id},shop.id,customer.id);
       }
-      const vehicleText=request?.vehicle||[clean(req.body?.year,10),clean(req.body?.make,80),clean(req.body?.model,100)].filter(Boolean).join(' '),mileage=clean(req.body?.mileage,50)||request?.mileage||vehicle?.mileage||null;
-      const row=addLegacyFields(withShopId({customer_id:request?.customer_id||customer?.id||null,vehicle_id:request?.vehicle_id||vehicle?.id||clean(req.body?.vehicle_id,80)||null,customer_name:request?.customer_name||clean(req.body?.customer_name||req.body?.customerName,120),phone:request?.phone||clean(req.body?.phone,40)||null,email:request?.email||clean(req.body?.email,200)||null,vehicle:vehicleText,mileage,technician:technician.name,technician_id:technician.id,inspection_request_id:request?.id||null,overall_status:status(req.body?.overall_status||req.body?.overallStatus),recommendations:clean(req.body?.recommendations,5000)||null,inspection_items:items},shop),items);
+      const vehicleText=request?.vehicle||[clean(req.body?.year,10),clean(req.body?.make,80),clean(req.body?.model,100)].filter(Boolean).join(' ')||'Vehicle not provided',mileage=clean(req.body?.mileage,50)||request?.mileage||vehicle?.mileage||null;
+      const row=addLegacyFields(withShopId({customer_id:request?.customer_id||customer?.id||null,vehicle_id:request?.vehicle_id||vehicle?.id||clean(req.body?.vehicle_id,80)||null,customer_name:request?.customer_name||clean(req.body?.customer_name||req.body?.customerName,120)||'Customer not provided',phone:request?.phone||clean(req.body?.phone,40)||null,email:request?.email||clean(req.body?.email,200)||null,vehicle:vehicleText,mileage,technician:technician.name,technician_id:technician.id,inspection_request_id:request?.id||null,overall_status:derivedStatus(items),recommendations:clean(req.body?.recommendations,5000)||null,inspection_items:items},shop),items);
       const {data:inspection,error}=await supabase.from('inspections').insert(row).select('*').single();
       if(error){if(String(error.code)==='23505')return json(res,409,{error:'This request already has an inspection report'});throw error;}
       const now=new Date().toISOString();
@@ -89,8 +91,7 @@ module.exports=async function handler(req,res){
       if(findError)throw findError;if(!existing)return json(res,404,{error:'Inspection not found'});
       const ownsInspection=existing.technician_id===technician.id||(!existing.technician_id&&clean(existing.technician,120).toLowerCase()===technician.name.toLowerCase());
       if(!ownsInspection)return json(res,403,{error:'You can only edit inspections assigned to your technician account'});
-      const patch=addLegacyFields({customer_name:clean(req.body?.customer_name||req.body?.customerName,120),phone:clean(req.body?.phone,40)||null,email:clean(req.body?.email,200)||null,vehicle:clean(req.body?.vehicle,300),mileage:clean(req.body?.mileage,50)||null,technician:technician.name,overall_status:status(req.body?.overall_status||req.body?.overallStatus),recommendations:clean(req.body?.recommendations,5000)||null,inspection_items:items},items);
-      if(!patch.customer_name||!patch.vehicle)return json(res,400,{error:'Customer and vehicle are required'});
+      const patch=addLegacyFields({customer_name:clean(req.body?.customer_name||req.body?.customerName,120)||'Customer not provided',phone:clean(req.body?.phone,40)||null,email:clean(req.body?.email,200)||null,vehicle:clean(req.body?.vehicle,300)||'Vehicle not provided',mileage:clean(req.body?.mileage,50)||null,technician:technician.name,overall_status:derivedStatus(items),recommendations:clean(req.body?.recommendations,5000)||null,inspection_items:items},items);
       let update=supabase.from('inspections').update({...patch,technician_id:technician.id}).eq('id',id).eq('shop_id',shop.id);if(existing.technician_id)update=update.eq('technician_id',technician.id);else update=update.is('technician_id',null);
       const {data,error}=await update.select('*').single();if(error)throw error;
       if(existing.vehicle_id&&patch.mileage)await supabase.from('customer_vehicles').update({mileage:patch.mileage,updated_at:new Date().toISOString()}).eq('id',existing.vehicle_id).eq('shop_id',shop.id).then(()=>{}).catch(()=>{});

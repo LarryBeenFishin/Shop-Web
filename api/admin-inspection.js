@@ -5,6 +5,7 @@ const { resolveShop, withShopId } = require('./_tenant');
 function clean(v,n=3000){return String(v??'').trim().slice(0,n)}
 function json(res,code,data){return res.status(code).json(data)}
 const ITEM_STATUSES=new Set(['Good','Monitor','Needs Attention']);
+function derivedStatus(items){return items.some(item=>item.status==='Needs Attention')?'Needs Attention':items.some(item=>item.status==='Monitor')?'Monitor':'Good'}
 
 function normalizeItems(value){
   if(!Array.isArray(value))return [];
@@ -24,7 +25,8 @@ module.exports=async function handler(req,res){
     if(!verifyForShop(req,shop))return json(res,401,{error:'Unauthorized'});
 
     const b=req.body||{};
-    const customerName=clean(b.customerName||b.customer_name,120);
+    const suppliedCustomerName=clean(b.customerName||b.customer_name,120);
+    const customerName=suppliedCustomerName||'Customer not provided';
     const phone=clean(b.phone,40);
     const email=clean(b.email,200)||null;
     const year=clean(b.year,10);
@@ -32,27 +34,23 @@ module.exports=async function handler(req,res){
     const model=clean(b.model,100);
     const mileage=clean(b.mileage,50)||null;
     const technician=clean(b.technician,120)||null;
-    const overallStatus=ITEM_STATUSES.has(b.overallStatus||b.overall_status)?(b.overallStatus||b.overall_status):'Monitor';
     const recommendations=clean(b.recommendations,5000)||null;
     const items=normalizeItems(b.inspectionItems||b.inspection_items);
 
-    if(!customerName||!phone)return json(res,400,{error:'Customer name and phone are required'});
-    if(!year||!make||!model)return json(res,400,{error:'Year, make and model are required'});
     if(!items.length)return json(res,400,{error:'Add at least one inspection block'});
 
-    const vehicleText=`${year} ${make} ${model}`;
-    const customer=await upsertCustomer(supabase,{
-      name:customerName,phone,email,vehicle:vehicleText,mileage
-    },shop.id);
-    if(!customer)return json(res,400,{error:'Could not create or find customer'});
+    const vehicleText=[year,make,model].filter(Boolean).join(' ')||'Vehicle not provided';
+    const customer=suppliedCustomerName&&phone?await upsertCustomer(supabase,{
+      name:suppliedCustomerName,phone,email,vehicle:vehicleText==='Vehicle not provided'?null:vehicleText,mileage
+    },shop.id):null;
 
-    const savedVehicle=await upsertCustomerVehicle(supabase,{
+    const savedVehicle=customer?.id&&year&&make&&model?await upsertCustomerVehicle(supabase,{
       vehicle_id:clean(b.vehicle_id,80)||null,
       year,make,model,mileage
-    },shop.id,customer.id);
+    },shop.id,customer.id):null;
 
     const row=withShopId({
-      customer_id:customer.id,
+      customer_id:customer?.id||null,
       vehicle_id:savedVehicle?.id||null,
       customer_name:customerName,
       phone,
@@ -60,7 +58,7 @@ module.exports=async function handler(req,res){
       vehicle:vehicleText,
       mileage,
       technician,
-      overall_status:overallStatus,
+      overall_status:derivedStatus(items),
       recommendations,
       inspection_items:items
     },shop);
@@ -78,7 +76,7 @@ module.exports=async function handler(req,res){
     if(error)throw error;
 
     await auditEvent(supabase,shop.id,'inspection.created','inspection',data.id,{
-      customer_id:customer.id,
+      customer_id:customer?.id||null,
       vehicle_id:savedVehicle?.id||null,
       customer:customerName,
       vehicle:vehicleText,
