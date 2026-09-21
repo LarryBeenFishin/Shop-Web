@@ -138,9 +138,10 @@
 .appt-reschedule-section{padding:15px;border:1px solid #dfe7f0;border-radius:14px;background:#fbfcfe}
 .appt-section-heading{display:flex;align-items:start;justify-content:space-between;gap:12px;margin-bottom:10px}
 .appt-section-heading .appt-section-title{margin-bottom:2px}
-.appt-reschedule-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.appt-reschedule-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.appt-reschedule-grid>div{min-width:0}
 .appt-reschedule-grid label{font-size:11px;margin:0 0 5px;color:#53637a}
-.appt-reschedule-grid input,.appt-reschedule-grid select{height:44px;padding:10px 12px;border-radius:10px;background:#fff}
+.appt-reschedule-grid input,.appt-reschedule-grid select{width:100%;min-width:0;max-width:100%;height:44px;padding:10px 12px;border-radius:10px;background:#fff}
 .appt-message-box{min-height:58px;padding:13px 14px;border-radius:12px;border:1px solid #e3e9f1;background:#f8fafc;color:#34455e;font-size:14px;line-height:1.45;white-space:pre-wrap}
 .appt-message-box.empty-message{color:#8894a5;font-style:italic}
 .appt-notes{min-height:105px;border-radius:12px;padding:13px 14px;background:#fff;line-height:1.45}
@@ -188,7 +189,7 @@
   .appt-info-grid{grid-template-columns:1fr 1fr;gap:8px}
   .appt-info-card{padding:11px}
   .appt-info-value{font-size:13px}
-  .appt-reschedule-grid{grid-template-columns:1fr 1fr}
+  .appt-reschedule-grid{grid-template-columns:1fr;gap:12px}
   .appt-inspection-panel{grid-template-columns:1fr;gap:10px}
   .appt-inspection-actions button{width:100%;min-height:48px}
   .appt-modal-actions{grid-template-columns:1fr 1fr}

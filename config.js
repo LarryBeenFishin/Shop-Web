@@ -48,10 +48,10 @@ window.SHOP_CONFIG = {
   }
 
   if(window.SKIP_SHARED_ADMIN_ASSETS) return;
-  if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=6';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
+  if(!document.querySelector('link[data-shop-admin-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/admin-redesign.css?v=7';link.dataset.shopAdminSkin='true';document.head.appendChild(link);}
   if(!document.querySelector('link[data-shop-status-skin]')){const link=document.createElement('link');link.rel='stylesheet';link.href='/admin/status-hidden.css?v=1';link.dataset.shopStatusSkin='true';document.head.appendChild(link);}
-  if(!document.querySelector('script[data-shop-shared-header]')){const script=document.createElement('script');script.src='/admin/shared-header.js?v=12';script.dataset.shopSharedHeader='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-shop-shared-header]')){const script=document.createElement('script');script.src='/admin/shared-header.js?v=13';script.dataset.shopSharedHeader='true';document.head.appendChild(script);}
   if(!document.querySelector('script[data-shop-vehicle-data]')){const vehicleData=document.createElement('script');vehicleData.src='/assets/vehicle-data.js?v=1';vehicleData.dataset.shopVehicleData='true';document.head.appendChild(vehicleData);}
-  if(!document.querySelector('script[data-shop-appt-modal]')){const script=document.createElement('script');script.src='/admin/appointment-modal-redesign.js?v=4';script.dataset.shopApptModal='true';document.head.appendChild(script);}
+  if(!document.querySelector('script[data-shop-appt-modal]')){const script=document.createElement('script');script.src='/admin/appointment-modal-redesign.js?v=5';script.dataset.shopApptModal='true';document.head.appendChild(script);}
   if(!document.querySelector('script[data-shop-new-appt]')){const script=document.createElement('script');script.src='/admin/new-appointment-enhancements.js?v=2';script.dataset.shopNewAppt='true';document.head.appendChild(script);}
 })();
